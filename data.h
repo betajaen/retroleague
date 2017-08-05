@@ -8,9 +8,13 @@
 #define IS_STREAMING 1
 
 #define MAX_PLAYERS 4
-#define BOUNDS_SIZE_F 200.0f
-#define BOUNDS_SIZE_I 200
+#define BOUNDS_SIZE_F 150.0f
+#define BOUNDS_SIZE_I 150
 #define BOUNDS_SIZE_HALF_F (BOUNDS_SIZE_F * 0.5f)
+
+#define GOAL_SIZE_X_F 50.0f
+#define GOAL_SIZE_X_I 50
+#define GOAL_SIZE_XH_F (GOAL_SIZE_X_F * 0.5f)
 
 #define DB16_TRANSPARENT 0
 #define DB16_VERY_DARK_VIOLET 1

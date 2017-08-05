@@ -888,7 +888,7 @@ void Scene_New(Scene* scene)
     $.width, $.height
   );
   
-  $$Mat44_ProjectionMatrix(&s->projectionMatrix, fb->width, fb->height, 80.0f, 1.0f, 100.0f);
+  $$Mat44_ProjectionMatrix(&s->projectionMatrix, fb->width, fb->height, 80.0f, 1.0f, 300.0f);
   $$Mat44_SceneMatrix(&s->screenMatrix, fb->width, fb->height);
  
   s->cameraOutOfDate = true;
@@ -912,8 +912,8 @@ void Scene_Delete(Scene* scene)
 void $$Mat44_ProjectionMatrix(Mat44* m, u32 w, u32 h, f32 fovy_deg, f32 far, f32 near)
 {
   f32 aspect    = (f32) w / (f32) h;
-  f32 farPlane  = 100.0f;
-  f32 nearPlane = 0.5f;
+  f32 farPlane  = far;
+  f32 nearPlane = near;
 
   f32 width  = tanf($Deg2Rad(fovy_deg) * 0.5f);
   f32 height = width / aspect;

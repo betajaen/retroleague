@@ -185,6 +185,10 @@ void Player_Tick(Player* player)
 
 void Ball_Tick(Ball* ball)
 {
+
+  bool inGoalArea = (ball->obj.position.x >= -GOAL_SIZE_XH_F && ball->obj.position.x <= GOAL_SIZE_XH_F);
+
+
   if (ball->obj.position.x < -BOUNDS_SIZE_HALF_F)
   {
     ball->obj.position.x = -BOUNDS_SIZE_HALF_F;
@@ -198,17 +202,34 @@ void Ball_Tick(Ball* ball)
     ball->obj.acceleration.x = -ball->obj.acceleration.x;
   }
   
-  if (ball->obj.position.z < -BOUNDS_SIZE_HALF_F)
+  if (inGoalArea == false && ball->obj.position.z < -BOUNDS_SIZE_HALF_F)
   {
     ball->obj.position.z = -BOUNDS_SIZE_HALF_F;
     ball->obj.velocity.z = -ball->obj.velocity.z;
     ball->obj.acceleration.z = -ball->obj.acceleration.z;
   }
-  else if (ball->obj.position.z > BOUNDS_SIZE_HALF_F)
+  else if (inGoalArea == false && ball->obj.position.z > BOUNDS_SIZE_HALF_F)
   {
     ball->obj.position.z = BOUNDS_SIZE_HALF_F;
     ball->obj.velocity.z = -ball->obj.velocity.z;
     ball->obj.acceleration.z = -ball->obj.acceleration.z;
+  }
+
+  if (inGoalArea && ball->obj.position.z < -BOUNDS_SIZE_HALF_F)
+  {
+    printf("Blue Scored\n");
+    ball->blue++;
+    ball->obj.position = $Vec3_Xyz(0,0,0);
+    ball->obj.velocity = $Vec3_Xyz(0,0,0);
+    ball->obj.acceleration = $Vec3_Xyz(0,0,0);
+  }
+  else if (inGoalArea && ball->obj.position.z > +BOUNDS_SIZE_HALF_F)
+  {
+    printf("Red Scored\n");
+    ball->red++;
+    ball->obj.position = $Vec3_Xyz(0,0,0);
+    ball->obj.velocity = $Vec3_Xyz(0,0,0);
+    ball->obj.acceleration = $Vec3_Xyz(0,0,0);
   }
 
   ball->obj.velocity.FORWARD    += ball->obj.acceleration.FORWARD * DELTA;

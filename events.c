@@ -110,15 +110,30 @@ void $Draw()
   $.Scene.DrawSkybox(&SCENE, DB16_CADET_BLUE, DB16_LEAF);
 
   const u32 dotDistance = 4;
-  const u32 nbDots = BOUNDS_SIZE_I / 4;
+  u32 nbDots = BOUNDS_SIZE_I / 4;
 
   for(u32 ii=0;ii < nbDots;ii++)
   {
     for(u32 jj=0;jj < nbDots;jj++)
     {
       f32 x = -(BOUNDS_SIZE_F * 0.5f) + (ii * dotDistance);
-      f32 y = -(BOUNDS_SIZE_F * 0.5f) + (jj * dotDistance);
-      $.Scene.DrawGroundDot(&SCENE, DB16_BRONZE, x, y);
+      f32 z = -(BOUNDS_SIZE_F * 0.5f) + (jj * dotDistance);
+      $.Scene.DrawGroundDot(&SCENE, DB16_PEPPERMINT, x, z);
+    }
+  }
+
+  nbDots = GOAL_SIZE_X_I / dotDistance;
+  f32 goalCenter = BOUNDS_SIZE_HALF_F - GOAL_SIZE_X_F * 0.5f;
+  
+  for(u32 ii=0;ii < nbDots;ii++)
+  {
+    for(u32 jj=0;jj < nbDots;jj++)
+    {
+      f32 x = -(GOAL_SIZE_X_F * 0.5f) + (ii * dotDistance);
+      f32 z = BOUNDS_SIZE_HALF_F + (jj * dotDistance);
+      $.Scene.DrawGroundDot(&SCENE, DB16_FADED_RED, x, z);
+      z = -BOUNDS_SIZE_HALF_F - GOAL_SIZE_X_F + (jj * dotDistance);
+      $.Scene.DrawGroundDot(&SCENE, DB16_CADET_BLUE, x, z);
     }
   }
 
