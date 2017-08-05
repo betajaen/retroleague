@@ -75,6 +75,11 @@ typedef struct
   u8     deathTime;
 } Wheel;
 
+typedef struct
+{
+  Vec3f delta, normal, pos;
+} IntersectPointResult;
+
 extern f32     DELTA;
 extern Surface SURFACE;
 extern Scene   SCENE;

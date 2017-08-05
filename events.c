@@ -46,6 +46,7 @@ void $Start()
 
   memset(&BALL, 0, sizeof(BALL));
   BALL.obj.type = OT_BALL;
+  BALL.obj.position.FORWARD = 30;
 
   $.Net.Connect("localhost", 5000);
   char* n = "HELLO";
@@ -138,11 +139,12 @@ void $Draw()
 
   Rot3i ballRot = { 0 };
   $.Scene.DrawMesh(&SCENE, &MESH_BALL, BALL.obj.position, ballRot);
-
+  
+  /*
   for(u32 i=0;i < 40;i++)
   {
     $.Scene.DrawMeshXyz(&SCENE, &MESH_BALL, 0, 0,i * 2.0f,  0,0,0);
-  }
+  }*/
 
   $.Scene.Render(&SCENE, &SURFACE);
   $.Canvas.DrawTextF(&CANVAS, &FONT, DB16_BANANA, 0, 200 - 9, "FPS %.1f, Triangles: %i Yaw: %i", $.Stats.fps, $.Stats.nbTriangles, ME->obj.yaw);

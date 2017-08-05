@@ -16,7 +16,12 @@ typedef int64_t  i64;
 typedef float    f32;
 
 typedef struct { i32 x, y;                    } Vec2;
-typedef struct { f32 x, y, z;                 } Vec3f;
+
+typedef union  {
+  struct { f32 x, y, z; };
+  struct { f32 RIGHT, UP, FORWARD; };
+ } Vec3f;
+
 typedef struct { f32 x, y, z, w;              } Vec4f;
 typedef struct { i16 roll, pitch, yaw;        } Rot3i;
 typedef struct { u8  r, g, b;                 } Colour;
@@ -223,6 +228,7 @@ extern void $Draw();
 #define $Max4(A, B, C, D)       ($Max(A, $Max(B, $Max(C, D))))
 #define $Clamp(X, MIN, MAX)     (X > MAX ? MAX : X < MIN ? MIN : X)
 #define $Sign(X)                ((0 < (X)) - ((X) < 0))
+#define $SignF(X)               (X < 0.0f ? -1.0f : 1.0f)
 
 #define $PermaNew(TYPE)         ($Cast(TYPE*) $.Mem.PermaAllocator(NULL, sizeof(TYPE)))
 #define $PermaDelete(OBJ)       $Scope(($.Mem.PermaAllocator(OBJ, 0)); OBJ = NULL;)

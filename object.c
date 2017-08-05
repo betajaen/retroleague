@@ -7,24 +7,6 @@ bool Object_IsAlive(Object* obj)
 }
 
 
-#define PLAYER_B              1.0f
-#define PLAYER_C              1.0f
-#define PLAYER_WHEELBASE      (PLAYER_B + PLAYER_C)
-#define PLAYER_H              1.0f
-#define PLAYER_MASS           1500.0f
-#define PLAYER_INERTIA        1500.0f
-#define PLAYER_LENGTH         3.0f
-#define PLAYER_WIDTH          1.5f
-#define PLAYER_WHEEL_LENGTH   0.7f
-#define PLAYER_WHEEL_WIDTH    0.3f
-#define GRAVITY               9.8f
-#define PLAYER_WEIGHT         (PLAYER_MASS * GRAVITY * 0.5f)
-#define PLAYER_DRAG           5.0f
-#define PLAYER_RESISTANCE     30.0f
-#define PLAYER_CA_R           -5.20f
-#define PLAYER_CA_F           -5.0f
-#define PLAYER_MAX_GRIP       2.0f
-
 #define PLAYER_gravity 9.81f  // m/s^2
 #define PLAYER_mass  1200.0f  // kg
 #define PLAYER_inertiaScale  1.0f  // Multiply by mass for inertia
@@ -72,9 +54,6 @@ inline f32 Player_GetBrake(Player* player)
   }
   return 0;
 }
-
-#define FORWARD z
-#define RIGHT   x
 
 void Player_Tick(Player* player)
 {
@@ -164,4 +143,18 @@ void Player_Tick(Player* player)
 	player->obj.position.FORWARD += player->obj.velocity.FORWARD * DELTA;
 	player->obj.position.RIGHT += player->obj.velocity.RIGHT * DELTA;
 
+}
+
+#define BALL_MASS 1200
+
+void Ball_Tick(Ball* ball)
+{
+  ball->obj.velocity.FORWARD     = ball->obj.acceleration.FORWARD * DELTA;
+  ball->obj.velocity.RIGHT       = ball->obj.acceleration.RIGHT * DELTA;
+  
+  ball->obj.position.FORWARD    += ball->obj.velocity.FORWARD * DELTA;
+  ball->obj.position.RIGHT      += ball->obj.velocity.RIGHT * DELTA;
+
+  ball->obj.acceleration.FORWARD = 0;
+  ball->obj.acceleration.RIGHT   = 0;
 }

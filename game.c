@@ -24,4 +24,6 @@ void Game_Tick()
 
     Player_Tick(player);
   }
+
+  Ball_Tick(&BALL);
 }

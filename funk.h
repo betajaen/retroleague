@@ -16,6 +16,7 @@ void Game_Tick();
 
 bool Object_IsAlive(Object* obj);
 void Player_Tick(Player* player);
+void Ball_Tick(Ball* ball);
 
 // Decode angle to radians
 inline f32 DecodeAngle(i16 angle)
@@ -33,6 +34,11 @@ inline f32 ApproxZero(f32 v)
 {
   return !(fabsf(v) > FLT_EPSILON);
 }
+
+bool IntersectPointXZ(Vec3f center, Vec3f halfSize, Vec3f point, IntersectPointResult* outResult);
+
+Vec3f TransformPointToLocalSpaceXZ(Vec3f selfPosition, i32 selfRotation, Vec3f otherPosition);
+
 
 #endif
 

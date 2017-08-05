@@ -1,11 +1,11 @@
 - [x] Fix genie file
 - [x] Decide on game features
 - [x] Make car mesh
-- [x Camera movement
-- [ ] Simple update server function (based on state of objects)
+- [x] Camera movement
+- [x] Simple update server function (based on state of objects)
 - [ ] Controller for player object
 - [ ] Controller for networked object
-- [ ] Car physics (movement, accelerator, brake and steering)
+- [x] Car physics (movement, accelerator, brake and steering)
 - [ ] Ball physics (movement for now)
 - [ ] Collisions
 - [ ] Rotate camera around car with mouse/keys
