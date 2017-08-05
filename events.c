@@ -107,8 +107,20 @@ void $Draw()
   rotationTimer += (1.0f / 60.0f) * 10.0f;
   rotationTimer = ConstrainAngle(rotationTimer);
 
-  $.Scene.DrawSkybox(&SCENE, DB16_CADET_BLUE, DB16_LEAF); 
-  $.Scene.DrawGroundDot(&SCENE, DB16_BRONZE, 0, 0);
+  $.Scene.DrawSkybox(&SCENE, DB16_CADET_BLUE, DB16_LEAF);
+
+  const u32 dotDistance = 4;
+  const u32 nbDots = BOUNDS_SIZE_I / 4;
+
+  for(u32 ii=0;ii < nbDots;ii++)
+  {
+    for(u32 jj=0;jj < nbDots;jj++)
+    {
+      f32 x = -(BOUNDS_SIZE_F * 0.5f) + (ii * dotDistance);
+      f32 y = -(BOUNDS_SIZE_F * 0.5f) + (jj * dotDistance);
+      $.Scene.DrawGroundDot(&SCENE, DB16_BRONZE, x, y);
+    }
+  }
 
   if (ME != NULL)
   {

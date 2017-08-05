@@ -1218,7 +1218,7 @@ void $$Scene_DrawGroundDot($$Scene* scene, $$FrameBuffer* fb, Mat44* vpsMatrix, 
 
   $Mat44_MultiplyVec4(&p1, vpsMatrix, &p);
 
-  if (p1.z <= p1.w)
+  if (p1.w > 0.0f && p1.z <= p1.w)
   {
     p1.x = p1.x / p1.w;
     p1.y = p1.y / p1.w;

@@ -103,31 +103,3 @@ bool IntersectPointXZRadius(Vec3f center, Vec3f halfSize, Vec3f min, Vec3f max, 
     return false;
   }
 }
-
-#if 0
-intersectPoint: (point) ->
-    dx = point.x - this.pos.x
-    px = this.half.x - abs(dx)
-    return null if px <= 0
-
-    dy = point.y - this.pos.y
-    py = this.half.y - abs(dy)
-    return null if py <= 0
-
-    hit = new Hit(this)
-    if px < py
-      sx = sign(dx)
-      hit.delta.x = px * sx
-      hit.normal.x = sx
-      hit.pos.x = this.pos.x + (this.half.x * sx)
-      hit.pos.y = point.y
-    else
-      sy = sign(dy)
-      hit.delta.y = py * sy
-      hit.normal.y = sy
-      hit.pos.x = point.x
-      hit.pos.y = this.pos.y + (this.half.y * sy)
-    return hit
-
-
-    #endif

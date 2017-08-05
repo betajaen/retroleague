@@ -185,6 +185,32 @@ void Player_Tick(Player* player)
 
 void Ball_Tick(Ball* ball)
 {
+  if (ball->obj.position.x < -BOUNDS_SIZE_HALF_F)
+  {
+    ball->obj.position.x = -BOUNDS_SIZE_HALF_F;
+    ball->obj.velocity.x = -ball->obj.velocity.x;
+    ball->obj.acceleration.x = -ball->obj.acceleration.x;
+  }
+  else if (ball->obj.position.x > BOUNDS_SIZE_HALF_F)
+  {
+    ball->obj.position.x = BOUNDS_SIZE_HALF_F;
+    ball->obj.velocity.x = -ball->obj.velocity.x;
+    ball->obj.acceleration.x = -ball->obj.acceleration.x;
+  }
+  
+  if (ball->obj.position.z < -BOUNDS_SIZE_HALF_F)
+  {
+    ball->obj.position.z = -BOUNDS_SIZE_HALF_F;
+    ball->obj.velocity.z = -ball->obj.velocity.z;
+    ball->obj.acceleration.z = -ball->obj.acceleration.z;
+  }
+  else if (ball->obj.position.z > BOUNDS_SIZE_HALF_F)
+  {
+    ball->obj.position.z = BOUNDS_SIZE_HALF_F;
+    ball->obj.velocity.z = -ball->obj.velocity.z;
+    ball->obj.acceleration.z = -ball->obj.acceleration.z;
+  }
+
   ball->obj.velocity.FORWARD    += ball->obj.acceleration.FORWARD * DELTA;
   ball->obj.velocity.RIGHT      += ball->obj.acceleration.RIGHT * DELTA;
   
