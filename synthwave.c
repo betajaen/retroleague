@@ -42,9 +42,10 @@
 
 Synthwave $;
 
-#define SDC_None 0
-#define SDC_DrawModel 1
-#define SDC_DrawSkybox 2
+#define SDC_None          0
+#define SDC_DrawModel     1
+#define SDC_DrawSkybox    2
+#define SDC_DrawGroundDot 3
 
 typedef struct
 {
@@ -53,6 +54,7 @@ typedef struct
   {
     struct { Mesh* mesh; Vec3f position; Rot3i rotation; u8 shader; } drawModel;
     struct { u8 sky, ground; } drawSkyBox;
+    struct { f32 x, z; u8 colour; } drawGroundDot;
   };
 } $$SceneDrawCmd;
 
@@ -1203,6 +1205,39 @@ void $$Scene_DrawSkybox($$Scene* scene, $$FrameBuffer* fb, f32 y, u8 sky, u8 gro
   }
 }
 
+void $$Scene_DrawGroundDot($$Scene* scene, $$FrameBuffer* fb, Mat44* vpsMatrix, f32 x, f32 z, u8 colour)
+{
+  
+  Vec4f p;
+  p.x = x;
+  p.y = 0.0f;
+  p.z = z;
+  p.w = 1.0f;
+
+  Vec4f p1;
+
+  $Mat44_MultiplyVec4(&p1, vpsMatrix, &p);
+
+  if (p1.z <= p1.w)
+  {
+    p1.x = p1.x / p1.w;
+    p1.y = p1.y / p1.w;
+    
+    RVec r;
+    $$Vec4_XForm(&r, &p1);
+
+    // Reject triangle if not on screen
+    i32 minX = $Max(r.x, 0) & (i32) 0xFFFFFFFE;
+    i32 maxX = $Min(r.x, (fb->width - 1));
+    i32 minY = $Max(r.y, 0) & (i32) 0xFFFFFFFE;
+    i32 maxY = $Min(r.y, (fb->height - 1));
+    if(maxX < minX || maxY < minY)
+      return;
+
+    $$FrameBuffer_StoreColour(fb, r.x, r.y, colour);
+  }
+}
+
 #define $$RENDER_ONLY_DEPTH 0
 
 void Scene_Render(Scene* scene, Surface* surface)
@@ -1269,6 +1304,11 @@ void Scene_Render(Scene* scene, Surface* surface)
       case SDC_DrawSkybox:
       {
         $$Scene_DrawSkybox(s, fb, s->skyboxY, cmd->drawSkyBox.sky, cmd->drawSkyBox.ground);
+      }
+      break;
+      case SDC_DrawGroundDot:
+      {
+        $$Scene_DrawGroundDot(s, fb, &s->vpsMatrix, cmd->drawGroundDot.x, cmd->drawGroundDot.z, cmd->drawGroundDot.colour);
       }
       break;
     }
@@ -1414,6 +1454,19 @@ void Scene_DrawCustomShaderMeshXyz(Scene* scene, Mesh* mesh, u8 shader, f32 x, f
   cmd->drawModel.rotation.yaw   = yaw;
   cmd->drawModel.rotation.roll  = roll;
   cmd->drawModel.shader = shader;
+}
+
+void Scene_DrawGroundDot(Scene* scene, u8 colour, f32 x, f32 z)
+{
+  $EnsureOpaque(scene);
+  $$Scene* s = $$CastOpaque($$Scene, scene);
+  
+  $$SceneDrawCmd* cmd;
+  $Array_PushAndFillOut(s->drawCmds, cmd);
+  cmd->type                   = SDC_DrawGroundDot;
+  cmd->drawGroundDot.x        = x;
+  cmd->drawGroundDot.z        = z;
+  cmd->drawGroundDot.colour   = colour;
 }
 
 #define TF_NONE    0
@@ -2442,6 +2495,7 @@ void $$SetupApi()
   $.Scene.DrawMeshXyz               = Scene_DrawMeshXyz;
   $.Scene.DrawCustomShaderMesh      = Scene_DrawCustomShaderMesh;
   $.Scene.DrawCustomShaderMeshXyz   = Scene_DrawCustomShaderMeshXyz;
+  $.Scene.DrawGroundDot             = Scene_DrawGroundDot;
   $.Sound.New                       = Sound_New;
   $.Sound.Play                      = Sound_Play;
   $.Sound.MuteAll                   = Sound_MuteAll;

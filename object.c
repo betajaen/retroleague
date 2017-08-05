@@ -166,7 +166,7 @@ void Player_TickBallCollision(Player* player, Ball* ball)
   {
     Vec3f worldNormal = TransformWorldPointToLocalSpaceXZ($Vec3_Xyz(0,0,0), player->obj.yaw, result.normal);
     
-    printf("** HIT %.1f %.1f => %.1f %.1f\n", result.normal.x, result.normal.z, worldNormal.x, worldNormal.z);
+    // printf("** HIT %.1f %.1f => %.1f %.1f\n", result.normal.x, result.normal.z, worldNormal.x, worldNormal.z);
 
     BALL.obj.acceleration.x += worldNormal.x * 3000.0f;
     BALL.obj.acceleration.z += worldNormal.z * 3000.0f;

@@ -108,7 +108,8 @@ void $Draw()
   rotationTimer = ConstrainAngle(rotationTimer);
 
   $.Scene.DrawSkybox(&SCENE, DB16_CADET_BLUE, DB16_LEAF); 
-  
+  $.Scene.DrawGroundDot(&SCENE, DB16_BRONZE, 0, 0);
+
   if (ME != NULL)
   {
     Vec3f cameraTarget = RotatePointXZ($Vec3_Xyz(0,0,6), ME->obj.yaw);
