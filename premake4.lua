@@ -1,4 +1,4 @@
-solution "Synthwave"
+solution "Retroleague"
 
       --------------------------------------------------------------------------
 
@@ -17,7 +17,7 @@ solution "Synthwave"
 
       --------------------------------------------------------------------------
 
-      project "Synthwave"
+      project "Retroleague"
           kind            "ConsoleApp"
           language        "C"
           objdir          "_build"
@@ -27,11 +27,11 @@ solution "Synthwave"
           includedirs     { "ref/SDL2/include",  "ref/SDL2_net/include", "ref/" }
           libdirs         { "ref/SDL2/lib/x86/", "ref/SDL2_net/lib/x86/",  }
 
-          files           { "synthwave.h", "synthwave*.c", "*.c", "*.h", "ref/*.c", "ref/*.h", "resources.rc", "resources.rc", "assets/*.png", "assets/*.wav", "assets/*.mod" }
+          files           { "Retroleague.h", "Retroleague*.c", "TODO.md", "*.c", "*.h", "ref/*.c", "ref/*.h", "resources.rc", "resources.rc", "assets/*.png", "assets/*.wav", "assets/*.mod" }
           excludes        { "ref/*.c", "ref/*.h" }
 
       --------------------------------------------------------------------------
 
-      startproject "Synthwave"
+      startproject "Retroleague"
 
       --------------------------------------------------------------------------

@@ -1,0 +1,5 @@
+- [x] Fix genie file
+- [ ] Decide on game features
+- [ ] Make car mesh
+- [ ] Rotated car
+- [ ] Simple multiplayer (4 car)
