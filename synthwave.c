@@ -847,6 +847,7 @@ void Mesh_Finalise(Mesh* mesh)
 
   // Radius
   mesh->squaredRadius = $Vec3_Length2(extents);
+  mesh->radius        = sqrtf(mesh->squaredRadius);
 }
 
 #define $$FrameBuffer_Size(FB)                       ((FB)->width * (FB)->height)

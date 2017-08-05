@@ -149,12 +149,30 @@ void Player_TickBallCollision(Player* player, Ball* ball)
 {
   Vec3f localPoint = TransformWorldPointToLocalSpaceXZ(player->obj.position, player->obj.yaw, ball->obj.position);
 
-  printf("%.1f %.1f | %.1f %.1f => %.1f/%.1f\n", 
-  ball->obj.position.x, ball->obj.position.z,
-  localPoint.x, localPoint.z, 
-  $Vec3_Length(localPoint),
-  $Vec3_Length($Vec3_Sub(player->obj.position, ball->obj.position)) 
-  );
+  /*
+    printf("%.1f %.1f | %.1f %.1f => %.1f/%.1f\n", 
+    ball->obj.position.x, ball->obj.position.z,
+    localPoint.x, localPoint.z, 
+    $Vec3_Length(localPoint),
+    $Vec3_Length($Vec3_Sub(player->obj.position, ball->obj.position)) 
+    );
+  */
+
+  // @TODO
+
+  IntersectPointResult result = { 0 };
+
+  if (IntersectPointXZRadius($Vec3_Xyz(0,0,0), MESH_PLAYER.halfSize, MESH_PLAYER.min, MESH_PLAYER.max, localPoint, 2.56f, &result))
+  {
+    Vec3f worldNormal = TransformWorldPointToLocalSpaceXZ($Vec3_Xyz(0,0,0), player->obj.yaw, result.normal);
+    
+    printf("** HIT %.1f %.1f => %.1f %.1f\n", result.normal.x, result.normal.z, worldNormal.x, worldNormal.z);
+
+    BALL.obj.acceleration.x += worldNormal.x * 1000.0f;
+    BALL.obj.acceleration.z += worldNormal.z * 1000.0f;
+  }
+
+
 }
 
 void Player_Tick(Player* player)

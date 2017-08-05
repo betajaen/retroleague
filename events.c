@@ -156,6 +156,10 @@ void $Draw()
      ME->obj.acceleration.x, ME->obj.acceleration.z, 
      ME->acceleratorBrake, ME->steering);
   }
+   $.Canvas.DrawTextF(&CANVAS, &FONT, DB16_BANANA, 0, 200 - 18 - 9, "XYZ: %.1f %.1f VEL: %.1f %.1f ACC: %.1f %.1f",
+     BALL.obj.position.x, BALL.obj.position.z, 
+     BALL.obj.velocity.x, BALL.obj.velocity.z, 
+     BALL.obj.acceleration.x, BALL.obj.acceleration.z);
   $.Canvas.Render(&CANVAS, &SURFACE);
 
   $.Surface.Render(&SURFACE);

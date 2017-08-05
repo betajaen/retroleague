@@ -49,7 +49,7 @@ typedef struct
   Triangle* triangles;
   u16       nbTriangles;
   Vec3f     min, max, centre, halfSize;
-  f32       squaredRadius;
+  f32       squaredRadius, radius;
 } Mesh;
 
 typedef struct Palette_t
@@ -229,6 +229,7 @@ extern void $Draw();
 #define $Clamp(X, MIN, MAX)     (X > MAX ? MAX : X < MIN ? MIN : X)
 #define $Sign(X)                ((0 < (X)) - ((X) < 0))
 #define $SignF(X)               (X < 0.0f ? -1.0f : 1.0f)
+#define $Squared(X)             ((X) * (X))
 
 #define $PermaNew(TYPE)         ($Cast(TYPE*) $.Mem.PermaAllocator(NULL, sizeof(TYPE)))
 #define $PermaDelete(OBJ)       $Scope(($.Mem.PermaAllocator(OBJ, 0)); OBJ = NULL;)
