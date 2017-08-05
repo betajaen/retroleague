@@ -64,9 +64,12 @@ typedef struct
   f32  halfWidth, halfHeight;
   u8*  colour;
   f32* depth;
+  f32* brightness;
 
   u8*  colourMem;
   f32* depthMem;
+  f32* brightnessMem;
+
   SDL_Texture* texture;
 } $$FrameBuffer;
 
@@ -852,11 +855,13 @@ void Mesh_Finalise(Mesh* mesh)
   mesh->radius        = sqrtf(mesh->squaredRadius);
 }
 
-#define $$FrameBuffer_Size(FB)                       ((FB)->width * (FB)->height)
-#define $$FrameBuffer_StoreColour(FB, X, Y, VALUE)   FB->colour[X + (Y * FB->width)] = VALUE
-#define $$FrameBuffer_FetchColour(FB, X, Y)          (FB->colour[X + (Y * FB->width)])
-#define $$FrameBuffer_StoreDepth(FB, X, Y, VALUE)    FB->depth[X + (Y * FB->width)] = VALUE
-#define $$FrameBuffer_FetchDepth(FB, X, Y)           (FB->depth[X + (Y * FB->width)])
+#define $$FrameBuffer_Size(FB)                            ((FB)->width * (FB)->height)
+#define $$FrameBuffer_StoreColour(FB, X, Y, VALUE)        FB->colour[X + (Y * FB->width)] = VALUE
+#define $$FrameBuffer_FetchColour(FB, X, Y)               (FB->colour[X + (Y * FB->width)])
+#define $$FrameBuffer_StoreDepth(FB, X, Y, VALUE)         FB->depth[X + (Y * FB->width)] = VALUE
+#define $$FrameBuffer_FetchDepth(FB, X, Y)                (FB->depth[X + (Y * FB->width)])
+#define $$FrameBuffer_StoreBrightness(FB, X, Y, VALUE)    FB->brightness[X + (Y * FB->width)] = VALUE
+#define $$FrameBuffer_FetchBrightness(FB, X, Y)           (FB->brightness[X + (Y * FB->width)])
 
 void $$Mat44_ProjectionMatrix(Mat44* m, u32 w, u32 h, f32 fovDeg, f32 far, f32 near);
 void $$Mat44_SceneMatrix(Mat44* m, u32 w, u32 h);
@@ -878,9 +883,11 @@ void Scene_New(Scene* scene)
   fb->halfHeight = $.height * 0.5f;
   fb->colourMem = $.Mem.PermaAllocator(NULL, sizeof(u8) *  ((fb->width * 2) + $$FrameBuffer_Size(fb)));
   fb->depthMem  = $.Mem.PermaAllocator(NULL, sizeof(f32) * ((fb->width * 2) + $$FrameBuffer_Size(fb)));
+  fb->brightnessMem  = $.Mem.PermaAllocator(NULL, sizeof(f32) * ((fb->width * 2) + $$FrameBuffer_Size(fb)));
 
   s->frameBuffer->colour = s->frameBuffer->colourMem + fb->width;
   s->frameBuffer->depth  = s->frameBuffer->depthMem + fb->width;
+  s->frameBuffer->brightness = s->frameBuffer->brightnessMem + fb->width;
   s->frameBuffer->texture = SDL_CreateTexture(
     $$.renderer,
     SDL_PIXELFORMAT_BGR888,
@@ -1030,7 +1037,7 @@ bool $$Fragment_Shader_##NAME($$FrameBuffer* fb,  Vec4f* v0, Vec4f* v1, Vec4f* v
 
 
 
-bool $$Fragment_Shader_InternalMetric($$FrameBuffer* fb,  Vec4f* v0, Vec4f* v1, Vec4f* v2, u8 c)
+bool $$Fragment_Shader_InternalMetric($$FrameBuffer* fb,  Vec4f* v0, Vec4f* v1, Vec4f* v2, u8 c, Vec4f* normal, Vec4f* lightDir)
 {
   RVec r[3];
   $$Vec4_XForm(&r[0], v0);
@@ -1070,6 +1077,8 @@ bool $$Fragment_Shader_InternalMetric($$FrameBuffer* fb,  Vec4f* v0, Vec4f* v1, 
   
   Vec2 p = { .x = minX, .y = minY };
 
+  f32 diff = $Clamp(0.1f + $Vec3_Dot4(*normal, *lightDir), 0.0f, 1.0f);
+
   i32 w0Row = (A0 * p.x) + (B0 * p.y) + C0;
   i32 w1Row = (A1 * p.x) + (B1 * p.y) + C1;
   i32 w2Row = (A2 * p.x) + (B2 * p.y) + C2;
@@ -1091,6 +1100,7 @@ bool $$Fragment_Shader_InternalMetric($$FrameBuffer* fb,  Vec4f* v0, Vec4f* v1, 
         {
           $$FrameBuffer_StoreColour(fb, p.x, p.y, c);
           $$FrameBuffer_StoreDepth(fb, p.x, p.y, depth);
+          $$FrameBuffer_StoreBrightness(fb, p.x, p.y, diff);
         }
       }
 
@@ -1119,18 +1129,20 @@ static $$FragmentShader $$FRAGMENT_SHADERS[2] = {
 };
 
 
-void $$Scene_DrawModel($$Scene* scene, $$FrameBuffer* fb, Mat44* vps, Mesh* mesh, Vec3f position, Rot3i rotation, u8 shader)
+void $$Scene_DrawModel($$Scene* scene, $$FrameBuffer* fb, Mat44* vps, Mesh* mesh, Vec3f position, Rot3i rotation, u8 shader, Vec4f* lightDir)
 {
-  Vec3f u[3]; Vec4f v[3];
-  Mat44 m;
+  Vec3f u[3]; Vec4f v[3], wv[3];
+  Mat44 m, mvps;
 
   // Model
   $Mat44_Identity(&m);
   $Mat44_RotMatrixZXY(&m, rotation);
   $Mat44_MultiplyTransform(&m, position);
 
+  
+
   // VPS
-  $Mat44_Multiply(&m, vps, &m);
+  $Mat44_Multiply(&mvps, vps, &m);
   
   for(u32 ii=0;ii < mesh->nbTriangles;ii++)
   {
@@ -1139,14 +1151,15 @@ void $$Scene_DrawModel($$Scene* scene, $$FrameBuffer* fb, Mat44* vps, Mesh* mesh
     for(u32 jj=0;jj < 3;jj++)
     {
       u[jj] = triangle->v[jj];
-
+      
       Vec4f p;
       p.x = u[jj].x;
       p.y = u[jj].y;
       p.z = u[jj].z;
       p.w = 1.0f;
-
-      $Mat44_MultiplyVec4(&v[jj], &m, &p);
+      
+      $Mat44_MultiplyVec4(&wv[jj], &m, &p);
+      $Mat44_MultiplyVec4(&v[jj], &mvps, &p);
       
       if (v[jj].z <= v[jj].w)
       {
@@ -1165,10 +1178,34 @@ void $$Scene_DrawModel($$Scene* scene, $$FrameBuffer* fb, Mat44* vps, Mesh* mesh
     
     if(render && (v[0].w > 0.0f && v[1].w > 0.0f && v[2].w > 0.0f))
     {
+    #if 0
       if ($$FRAGMENT_SHADERS[shader](fb, &v[0], &v[1], &v[2], triangle->colour))
       {
         $.Stats.nbTriangles++;
       }
+    #else
+      Vec3f nu;
+      nu.x = wv[1].x - wv[0].x;
+      nu.y = wv[1].y - wv[0].y;
+      nu.z = wv[1].z - wv[0].z;
+
+      Vec3f nv;
+      nv.x = wv[2].x - wv[1].x;
+      nv.y = wv[2].y - wv[1].y;
+      nv.z = wv[2].z - wv[1].z;
+
+      Vec4f normal;
+      normal.x = nu.y * nv.z - nu.z * nv.y;
+      normal.y = nu.z * nv.x - nu.x * nv.z;
+      normal.z = nu.x * nv.y - nu.y * nv.x;
+      normal.w = 1.0f;
+      normal = $Vec4_Normalise3(normal);
+
+      if ($$Fragment_Shader_InternalMetric(fb, &v[0], &v[1], &v[2], triangle->colour, &normal, lightDir))
+      {
+        $.Stats.nbTriangles++;
+      }
+    #endif
     }
   }
 }
@@ -1238,7 +1275,7 @@ void $$Scene_DrawGroundDot($$Scene* scene, $$FrameBuffer* fb, Mat44* vpsMatrix, 
   }
 }
 
-#define $$RENDER_ONLY_DEPTH 0
+#define $$RENDER_TYPE 0
 
 void Scene_Render(Scene* scene, Surface* surface)
 {
@@ -1252,9 +1289,18 @@ void Scene_Render(Scene* scene, Surface* surface)
   //memset(fb->depth,  0, sizeof(f32) * $$FrameBuffer_Size(fb));
   i32 wh = $$FrameBuffer_Size(fb);
   for(i32 i=0;i < wh;i++)
+  {
     fb->depth[i] = 1.0f;
+    fb->brightness[i] = 1.0f;
+  }
 
   $.Stats.nbTriangles = 0;
+
+  Vec4f lightDir;
+  lightDir.x = 10;
+  lightDir.y = 10;
+  lightDir.z = 10;
+  lightDir = $Vec4_Normalise3(lightDir);
   
   if (s->cameraOutOfDate)
   {
@@ -1298,7 +1344,7 @@ void Scene_Render(Scene* scene, Surface* surface)
     {
       case SDC_DrawModel:
       {
-        $$Scene_DrawModel(s, fb, &s->vpsMatrix, cmd->drawModel.mesh, cmd->drawModel.position, cmd->drawModel.rotation, cmd->drawModel.shader);
+        $$Scene_DrawModel(s, fb, &s->vpsMatrix, cmd->drawModel.mesh, cmd->drawModel.position, cmd->drawModel.rotation, cmd->drawModel.shader, &lightDir);
       }
       break;
       case SDC_DrawSkybox:
@@ -1325,17 +1371,23 @@ void Scene_Render(Scene* scene, Surface* surface)
 
   for(u32 i=0, j=0;i < limit;i++,j+=4 /* RGBA for some reason */)
   {
-#if $$RENDER_ONLY_DEPTH == 1
+#if $$RENDER_TYPE == 0
+    u8 index = fb->colour[i];
+    f32 brightness = fb->brightness[i];
+    Colour* colour = &palette->colours[index];
+    pixels[j + 0] = (u8) (colour->r * brightness); // R
+    pixels[j + 1] = (u8) (colour->g * brightness); // G
+    pixels[j + 2] = (u8) (colour->b * brightness); // B
+#elif $$RENDER_TYPE == 1
     u8 index = (u8) ((1.0f - fb->depth[i]) * 255.0f);
     pixels[j + 0] = index; // R
     pixels[j + 1] = index; // G
     pixels[j + 2] = index; // B
-#else
-    u8 index = fb->colour[i];
-    Colour* colour = &palette->colours[index];
-    pixels[j + 0] = colour->r; // R
-    pixels[j + 1] = colour->g; // G
-    pixels[j + 2] = colour->b; // B
+#elif $$RENDER_TYPE == 2
+    u8 index = (u8) ((fb->brightness[i]) * 255.0f);
+    pixels[j + 0] = index; // R
+    pixels[j + 1] = index; // G
+    pixels[j + 2] = index; // B
 #endif
   }
   
@@ -2197,6 +2249,21 @@ Vec3f $Vec3_Normalise(Vec3f v)
   return v;
 }
 
+Vec4f $Vec4_Normalise3(Vec4f v)
+{
+  f32 length = $Vec4_Length3(v);
+  
+  if (length != 0.0f)
+  {
+    f32 r = 1.0f / length;
+    v.x *= r;
+    v.y *= r;
+    v.z *= r;
+  }
+  
+  return v;
+}
+
 Vec3f $Vec3_Cross(Vec3f a, Vec3f b)
 {
   Vec3f r;
@@ -2214,6 +2281,11 @@ f32   $Vec3_Length(Vec3f v)
 f32   $Vec3_Length2(Vec3f v)
 {
   return $Vec3_Dot(v, v);
+}
+
+f32   $Vec4_Length3(Vec4f v)
+{
+  return sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
 }
 
 void $Mat44_LookAt(Mat44* m, Vec3f pos, Vec3f target)

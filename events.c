@@ -188,6 +188,11 @@ void $Draw()
      BALL.obj.position.x, BALL.obj.position.z, 
      BALL.obj.velocity.x, BALL.obj.velocity.z, 
      BALL.obj.acceleration.x, BALL.obj.acceleration.z);
+
+
+  
+   $.Canvas.DrawTextF(&CANVAS, &FONT, DB16_FADED_RED, 0, 0, "R: %i B: %i", BALL.red, BALL.blue);
+
   $.Canvas.Render(&CANVAS, &SURFACE);
 
   $.Surface.Render(&SURFACE);
