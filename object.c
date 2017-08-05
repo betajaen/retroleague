@@ -55,7 +55,7 @@ inline f32 Player_GetBrake(Player* player)
   return 0;
 }
 
-void Player_Tick(Player* player)
+void Player_TickPhysics(Player* player)
 {
   //  Vec3f velocity, acceleration; //, lateralFrontForce, lateralRearForce, traction, drag, force;
 
@@ -143,6 +143,24 @@ void Player_Tick(Player* player)
 	player->obj.position.FORWARD += player->obj.velocity.FORWARD * DELTA;
 	player->obj.position.RIGHT += player->obj.velocity.RIGHT * DELTA;
 
+}
+
+void Player_TickBallCollision(Player* player, Ball* ball)
+{
+  Vec3f localPoint = TransformWorldPointToLocalSpaceXZ(player->obj.position, player->obj.yaw, ball->obj.position);
+
+  printf("%.1f %.1f | %.1f %.1f => %.1f/%.1f\n", 
+  ball->obj.position.x, ball->obj.position.z,
+  localPoint.x, localPoint.z, 
+  $Vec3_Length(localPoint),
+  $Vec3_Length($Vec3_Sub(player->obj.position, ball->obj.position)) 
+  );
+}
+
+void Player_Tick(Player* player)
+{
+  Player_TickBallCollision(player, &BALL);
+  Player_TickPhysics(player);
 }
 
 #define BALL_MASS 1200

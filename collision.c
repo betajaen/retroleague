@@ -1,13 +1,34 @@
 #include "data.h"
 #include <math.h>
 
-Vec3f TransformPointToLocalSpaceXZ(Vec3f selfPosition, i32 selfRotation, Vec3f otherPosition)
+Vec3f TransformWorldPointToLocalSpaceXZ(Vec3f selfPosition, i32 selfRotation, Vec3f otherPosition)
 {
   Vec3f r;
   r.x = 0;
   r.y = 0;
   r.z = 0;
-  // @TODO
+
+  /*
+      x'  =  x * cos(t) - z * sin(t)
+      y'  =  x * sin(t) + z * cos(t)
+  */
+  f32 t = $Deg2Rad(selfRotation), c = cosf(t), s = sinf(t);
+
+  f32 dx = otherPosition.x - selfPosition.x;
+  f32 dz = otherPosition.z - selfPosition.z;
+
+  r.x = dx * c - dz * s;
+  r.z = dx * s + dz * c;
+  
+  //f32 x1 = otherPosition.x * c - otherPosition.z * s;// !!!!!!!!!!!!!!!!!!!!!!!!!!
+  //f32 z1 = otherPosition.z * c + otherPosition.x * s;
+
+  // player->carVelocity.RIGHT   = cs * player->obj.velocity.RIGHT   - sn * player->obj.velocity.FORWARD;
+	// player->carVelocity.FORWARD = cs * player->obj.velocity.FORWARD + sn * player->obj.velocity.RIGHT;
+	
+ // r.x = x1 - selfPosition.x;
+ // r.z = z1 - selfPosition.z;
+
   return r;
 }
 

@@ -843,6 +843,7 @@ void Mesh_Finalise(Mesh* mesh)
   mesh->max = max;
   extents = $Vec3_Sub(mesh->max, mesh->min);
   mesh->centre = extents;
+  mesh->halfSize = $Vec3_MulS($Vec3_Sub(mesh->max, mesh->min), 0.5f);
 
   // Radius
   mesh->squaredRadius = $Vec3_Length2(extents);

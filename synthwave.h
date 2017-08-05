@@ -48,7 +48,7 @@ typedef struct
 { 
   Triangle* triangles;
   u16       nbTriangles;
-  Vec3f     min, max, centre;
+  Vec3f     min, max, centre, halfSize;
   f32       squaredRadius;
 } Mesh;
 
@@ -275,6 +275,9 @@ inline Vec3f $Vec3_Add(Vec3f a, Vec3f b) { return $Vec3_Xyz(a.x + b.x, a.y + b.y
 inline Vec3f $Vec3_Sub(Vec3f a, Vec3f b) { return $Vec3_Xyz(a.x - b.x, a.y - b.y, a.z - b.z); }
 inline Vec3f $Vec3_Mul(Vec3f a, Vec3f b) { return $Vec3_Xyz(a.x * b.x, a.y * b.y, a.z * b.z); }
 inline Vec3f $Vec3_Div(Vec3f a, Vec3f b) { return $Vec3_Xyz(a.x / b.x, a.y / b.y, a.z / b.z); }
+inline Vec3f $Vec3_MulS(Vec3f a, f32 s)  { return $Vec3_Xyz(a.x * s, a.y * s, a.z * s); }
+inline Vec3f $Vec3_DivS(Vec3f a, f32 s)  { return $Vec3_Xyz(a.x / s, a.y / s, a.z / s); }
+
 Vec3f $Vec3_Normalise(Vec3f v);
 inline f32   $Vec3_Dot(Vec3f a, Vec3f b)  { return a.x * b.x + a.y * b.y + a.z * b.z;          }
 Vec3f $Vec3_Cross(Vec3f a, Vec3f b);

@@ -37,7 +37,7 @@ inline f32 ApproxZero(f32 v)
 
 bool IntersectPointXZ(Vec3f center, Vec3f halfSize, Vec3f point, IntersectPointResult* outResult);
 
-Vec3f TransformPointToLocalSpaceXZ(Vec3f selfPosition, i32 selfRotation, Vec3f otherPosition);
+Vec3f TransformWorldPointToLocalSpaceXZ(Vec3f selfPosition, i32 selfRotation, Vec3f otherPosition);
 
 
 #endif
