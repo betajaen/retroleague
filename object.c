@@ -168,8 +168,8 @@ void Player_TickBallCollision(Player* player, Ball* ball)
     
     printf("** HIT %.1f %.1f => %.1f %.1f\n", result.normal.x, result.normal.z, worldNormal.x, worldNormal.z);
 
-    BALL.obj.acceleration.x += worldNormal.x * 1000.0f;
-    BALL.obj.acceleration.z += worldNormal.z * 1000.0f;
+    BALL.obj.acceleration.x += worldNormal.x * 3000.0f;
+    BALL.obj.acceleration.z += worldNormal.z * 3000.0f;
   }
 
 
@@ -185,11 +185,15 @@ void Player_Tick(Player* player)
 
 void Ball_Tick(Ball* ball)
 {
-  ball->obj.velocity.FORWARD     = ball->obj.acceleration.FORWARD * DELTA;
-  ball->obj.velocity.RIGHT       = ball->obj.acceleration.RIGHT * DELTA;
+  ball->obj.velocity.FORWARD    += ball->obj.acceleration.FORWARD * DELTA;
+  ball->obj.velocity.RIGHT      += ball->obj.acceleration.RIGHT * DELTA;
   
   ball->obj.position.FORWARD    += ball->obj.velocity.FORWARD * DELTA;
   ball->obj.position.RIGHT      += ball->obj.velocity.RIGHT * DELTA;
+  
+  ball->obj.velocity.FORWARD    *= 0.95f;
+  ball->obj.velocity.RIGHT      *= 0.95f;
+  
 
   ball->obj.acceleration.FORWARD = 0;
   ball->obj.acceleration.RIGHT   = 0;
