@@ -57,8 +57,10 @@ typedef struct
   i8 steering;            // steering in whatever units. - to +
   i8 acceleratorBrake;    // < 0 brake, > 0 accelerate, 0 = none
   f32 angularVelocity;    // Angular velocity of player - not related to yaw, Stored in 1/10th degrees ($Rad2Deg(DEG) * 100)
-  i8 steerAngle;          // Angle of steering of player - In degrees
-  f32 angle;              // True yaw
+  f32 heading;              // True yaw
+  f32 yawRate;
+  f32 absVelocity;
+  Vec3f carAcceleration, carVelocity;
 } Player;
 
 typedef struct

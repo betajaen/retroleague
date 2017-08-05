@@ -72,6 +72,29 @@ void $Update()
     }
   }
 
+  if (ME != NULL)
+  {
+    if ($.Input.ControlDown(CONTROL_LEFT))
+    {
+      ME->steering = -10;
+    }
+    else if ($.Input.ControlDown(CONTROL_RIGHT))
+    {
+      ME->steering = +10;
+    }
+    else
+    {
+      ME->steering = 0;
+    }
+
+    if ($.Input.ControlDown(CONTROL_FORWARD))
+      ME->acceleratorBrake = 100;
+    else if ($.Input.ControlDown(CONTROL_BACKWARD))
+      ME->acceleratorBrake = -100;
+    else
+      ME->acceleratorBrake = 0;
+  }
+
   Game_Tick();
 
 }
@@ -82,14 +105,13 @@ void $Draw()
 {
   rotationTimer += (1.0f / 60.0f) * 10.0f;
   rotationTimer = ConstrainAngle(rotationTimer);
-  printf("%f\n", rotationTimer);
 
   $.Scene.DrawSkybox(&SCENE, DB16_CADET_BLUE, DB16_LEAF); 
   
   if (ME != NULL)
   {
-    Vec3f cameraTarget = RotatePointXZ($Vec3_Xyz(0,0,-6), ME->obj.yaw);
-    Vec3f cameraPos    = RotatePointXZ($Vec3_Xyz(0,4,6), ME->obj.yaw);
+    Vec3f cameraTarget = RotatePointXZ($Vec3_Xyz(0,0,6), ME->obj.yaw);
+    Vec3f cameraPos    = RotatePointXZ($Vec3_Xyz(0,4,-6), ME->obj.yaw);
 
     cameraPos.x += ME->obj.position.x;
     cameraPos.y += ME->obj.position.y;
@@ -116,9 +138,22 @@ void $Draw()
 
   Rot3i ballRot = { 0 };
   $.Scene.DrawMesh(&SCENE, &MESH_BALL, BALL.obj.position, ballRot);
-  
+
+  for(u32 i=0;i < 40;i++)
+  {
+    $.Scene.DrawMeshXyz(&SCENE, &MESH_BALL, 0, 0,i * 2.0f,  0,0,0);
+  }
+
   $.Scene.Render(&SCENE, &SURFACE);
-  $.Canvas.DrawTextF(&CANVAS, &FONT, DB16_BANANA, 0, 200 - 9, "FPS %.1f, Triangles: %i", $.Stats.fps, $.Stats.nbTriangles);
+  $.Canvas.DrawTextF(&CANVAS, &FONT, DB16_BANANA, 0, 200 - 9, "FPS %.1f, Triangles: %i Yaw: %i", $.Stats.fps, $.Stats.nbTriangles, ME->obj.yaw);
+  if (ME != NULL)
+  {
+    $.Canvas.DrawTextF(&CANVAS, &FONT, DB16_BANANA, 0, 200 - 18, "XYZ: %.1f %.1f VEL: %.1f %.1f ACC: %.1f %.1f A: %i S: %i",
+     ME->obj.position.x, ME->obj.position.z, 
+     ME->obj.velocity.x, ME->obj.velocity.z, 
+     ME->obj.acceleration.x, ME->obj.acceleration.z, 
+     ME->acceleratorBrake, ME->steering);
+  }
   $.Canvas.Render(&CANVAS, &SURFACE);
 
   $.Surface.Render(&SURFACE);

@@ -25,6 +25,36 @@ bool Object_IsAlive(Object* obj)
 #define PLAYER_CA_F           -5.0f
 #define PLAYER_MAX_GRIP       2.0f
 
+#define PLAYER_gravity 9.81f  // m/s^2
+#define PLAYER_mass  1200.0f  // kg
+#define PLAYER_inertiaScale  1.0f  // Multiply by mass for inertia
+#define PLAYER_halfWidth  0.8f // Centre to side of chassis (metres)
+#define PLAYER_cgToFront 2.0f // Centre of gravity to front of chassis (metres)
+#define PLAYER_cgToRear  2.0f   // Centre of gravity to rear of chassis
+#define PLAYER_cgToFrontAxle 1.25f  // Centre gravity to front axle
+#define PLAYER_cgToRearAxle  1.25f  // Centre gravity to rear axle
+#define PLAYER_cgHeight 0.55f  // Centre gravity height
+#define PLAYER_wheelRadius  0.3f  // Includes tire (also represents height of axle)
+#define PLAYER_wheelWidth  0.2f  // Used for render only
+#define PLAYER_tireGrip 2.0f  // How much grip tires have
+#define PLAYER_lockGrip 0.7f  // % of grip available when wheel is locked
+#define PLAYER_engineForce 8000.0f
+#define PLAYER_brakeForce 12000.0f
+#define PLAYER_eBrakeForce PLAYER_brakeForce / 2.5f
+#define PLAYER_weightTransfer 0.2f  // How much weight is transferred during acceleration/braking
+#define PLAYER_maxSteer 0.6f  // Maximum steering angle in radians
+#define PLAYER_cornerStiffnessFront 5.0f
+#define PLAYER_cornerStiffnessRear 5.2f
+#define PLAYER_airResist 2.5f	// air resistance (* vel)
+#define PLAYER_rollResist 8.0f	// rolling resistance force (* vel)
+
+
+#define PLAYER_inertia PLAYER_mass * PLAYER_inertiaScale
+#define PLAYER_wheelBase PLAYER_cgToFrontAxle + PLAYER_cgToRearAxle
+#define PLAYER_axleWeightRatioFront  PLAYER_cgToRearAxle / PLAYER_wheelBase // % car weight on the front axle
+#define PLAYER_axleWeightRatioRear PLAYER_cgToFrontAxle / PLAYER_wheelBase // % car weight on the rear axle
+
+
 inline f32 Player_GetThrottle(Player* player)
 {
   i8 v = player->acceleratorBrake;
@@ -37,7 +67,9 @@ inline f32 Player_GetBrake(Player* player)
 {
   i8 v = player->acceleratorBrake;
   if (v < 0)
+  {
     return (f32) -v;
+  }
   return 0;
 }
 
@@ -46,82 +78,90 @@ inline f32 Player_GetBrake(Player* player)
 
 void Player_Tick(Player* player)
 {
-  Vec3f velocity, acceleration, lateralFrontForce, lateralRearForce, tractionForce, resistance, force;
+  //  Vec3f velocity, acceleration; //, lateralFrontForce, lateralRearForce, traction, drag, force;
 
-  f32 rotAngle, sideslip, slipAngleFront, slipAngleRear, angularAcceleration, torque,
-  sn = sinf(player->angle),
-  cs = cosf(player->angle),
-  steering = $Deg2Rad((f32) player->steering);
+  //f32 rotAngle, sideslip, slipAngleFront, slipAngleRear, angularAcceleration, torque,
+  f32 sn = sinf(player->heading),
+  cs = cosf(player->heading),
+  steerAngle = $Deg2Rad((f32) player->steering * 4.0f);
+
+	// Get velocity in local car coordinates
+	player->carVelocity.FORWARD = cs * player->obj.velocity.FORWARD + sn * player->obj.velocity.RIGHT;
+	player->carVelocity.RIGHT   = cs * player->obj.velocity.RIGHT   - sn * player->obj.velocity.FORWARD;
+
+	// Weight on axles based on centre of gravity and weight shift due to forward/reverse acceleration
+	f32 axleWeightFront = PLAYER_mass * (PLAYER_axleWeightRatioFront * PLAYER_gravity - PLAYER_weightTransfer * player->carAcceleration.FORWARD * PLAYER_cgHeight / PLAYER_wheelBase);
+	f32 axleWeightRear = PLAYER_mass * (PLAYER_axleWeightRatioRear * PLAYER_gravity + PLAYER_weightTransfer * player->carAcceleration.FORWARD * PLAYER_cgHeight / PLAYER_wheelBase);
+
+	// Resulting velocity of the wheels as result of the yaw rate of the car body.
+	// v = yawrate * r where r is distance from axle to CG and yawRate (angular velocity) in rad/s.
+	f32 yawSpeedFront = PLAYER_cgToFrontAxle * player->yawRate;
+	f32 yawSpeedRear = -PLAYER_cgToRearAxle * player->yawRate;
+
+	// Calculate slip angles for front and rear wheels (a.k.a. alpha)
+	f32 slipAngleFront = atan2f(player->carVelocity.RIGHT + yawSpeedFront, fabsf(player->carVelocity.FORWARD)) - $Sign(player->carVelocity.FORWARD) * steerAngle;
+	f32 slipAngleRear  = atan2f(player->carVelocity.RIGHT + yawSpeedRear,  fabsf(player->carVelocity.FORWARD));
+
+	f32 tireGripFront = PLAYER_tireGrip;
+	f32 tireGripRear = PLAYER_tireGrip; // * (1.0 - this.inputs.ebrake * (1.0 - PLAYER_lockGrip)); // reduce rear grip when ebrake is on
+
+	f32 frictionForceFront_cy = $Clamp(-PLAYER_cornerStiffnessFront * slipAngleFront, -tireGripFront, tireGripFront) * axleWeightFront;
+	f32 frictionForceRear_cy = $Clamp(-PLAYER_cornerStiffnessRear * slipAngleRear, -tireGripRear, tireGripRear) * axleWeightRear;
+
+	//  Get amount of brake/throttle from our inputs
+	f32 brake = Player_GetBrake(player) * 100.0f; // $Min(this.inputs.brake * PLAYER_brakeForce + this.inputs.ebrake * PLAYER_eBrakeForce, PLAYER_brakeForce);
+	f32 throttle = Player_GetThrottle(player) * 100.0f; //this.inputs.throttle * PLAYER_engineForce;
 
 
-  velocity.FORWARD = cs * player->obj.velocity.RIGHT + sn * player->obj.velocity.FORWARD;
-  velocity.RIGHT =-sn * player->obj.velocity.RIGHT + cs * player->obj.velocity.FORWARD;
-
-  f32 yawSpeed = PLAYER_WHEELBASE * 0.5f * player->angularVelocity;
-
-  if (ApproxZero(velocity.FORWARD))
-  {
-    rotAngle = 0.0f;
-    sideslip = 0.0f;
-  }
-  else
-  {
-    rotAngle = atan2f(yawSpeed, velocity.FORWARD);
-    sideslip = atan2f(velocity.RIGHT, velocity.FORWARD);
-  }
-
-  slipAngleFront = sideslip + rotAngle - steering;
-  slipAngleRear  = sideslip - rotAngle;
-
-  lateralFrontForce.FORWARD = 0.0f;
-  lateralFrontForce.RIGHT = PLAYER_CA_F * slipAngleFront;
-  lateralFrontForce.RIGHT = $Min(PLAYER_MAX_GRIP, lateralFrontForce.RIGHT);
-  lateralFrontForce.RIGHT = $Max(-PLAYER_MAX_GRIP, lateralFrontForce.RIGHT);
-  lateralFrontForce.RIGHT *= PLAYER_WEIGHT;
-  // if (HANDBRAKE)
-  //  lateralFrontForce.RIGHT *= 0.5;
+	//  Resulting force in local car coordinates.
+	//  This is implemented as a RWD car only.
+	f32 tractionForce_cx = throttle - brake * $Sign(player->carVelocity.FORWARD);
+	f32 tractionForce_cy = 0;
   
-  lateralRearForce.FORWARD = 0.0f;
-  lateralRearForce.RIGHT = PLAYER_CA_R * slipAngleRear;
-  lateralRearForce.RIGHT = $Min(PLAYER_MAX_GRIP, lateralRearForce.RIGHT);
-  lateralRearForce.RIGHT = $Max(-PLAYER_MAX_GRIP, lateralRearForce.RIGHT);
-  lateralRearForce.RIGHT *= PLAYER_WEIGHT;
+	f32 dragForce_cx = -PLAYER_rollResist * player->carVelocity.FORWARD - PLAYER_airResist * player->carVelocity.FORWARD * fabsf(player->carVelocity.FORWARD);
+	f32 dragForce_cy = -PLAYER_rollResist * player->carVelocity.RIGHT - PLAYER_airResist * player->carVelocity.RIGHT * fabsf(player->carVelocity.RIGHT);
   
-  // if (HANDBRAKE)
-  //  lateralRearForce.RIGHT *= 0.5;
+	// total force in car coordinates
+	f32 totalForce_cx = dragForce_cx + tractionForce_cx;
+  f32 css_sin = sinf(steerAngle);
+  f32 css_cos = cosf(steerAngle);
 
-  tractionForce.FORWARD = 100.0f * (Player_GetThrottle(player) - Player_GetBrake(player) * $Sign(velocity.FORWARD));
-  tractionForce.RIGHT = 0;
-  
-  // if (HANDBRAKE)
-  //  tractionForce.RIGHT *= 0.5;
+  f32 css = sinf(steerAngle) * frictionForceFront_cy;
+	f32 totalForce_cy = dragForce_cy + tractionForce_cy + css + frictionForceRear_cy;
 
-  resistance.FORWARD = -( PLAYER_RESISTANCE * velocity.FORWARD + PLAYER_DRAG * velocity.FORWARD * fabsf(velocity.FORWARD));
-  resistance.RIGHT = -( PLAYER_RESISTANCE * velocity.RIGHT + PLAYER_DRAG * velocity.RIGHT * fabsf(velocity.RIGHT));
-  
-  force.FORWARD = tractionForce.FORWARD + sinf(steering) * lateralFrontForce.FORWARD + lateralRearForce.FORWARD + resistance.FORWARD;
-  force.RIGHT = tractionForce.RIGHT + cosf(steering) * lateralFrontForce.RIGHT + lateralRearForce.RIGHT + resistance.RIGHT;
+	// acceleration along car axes
+	player->carAcceleration.FORWARD = totalForce_cx / PLAYER_mass;  // forward/reverse accel
+	player->carAcceleration.RIGHT = totalForce_cy / PLAYER_mass;  // sideways accel
 
-  torque = PLAYER_B * lateralFrontForce.RIGHT - PLAYER_C * lateralRearForce.RIGHT;
+	// acceleration in world coordinates
+	player->obj.acceleration.FORWARD = cs * player->carAcceleration.FORWARD - sn * player->carAcceleration.RIGHT;
+	player->obj.acceleration.RIGHT = sn * player->carAcceleration.FORWARD + cs * player->carAcceleration.RIGHT;
 
-  acceleration.FORWARD = force.FORWARD / PLAYER_MASS;
-  acceleration.RIGHT = force.RIGHT / PLAYER_MASS;
+	// update velocity
+	player->obj.velocity.FORWARD += player->obj.acceleration.FORWARD * DELTA;
+	player->obj.velocity.RIGHT += player->obj.acceleration.RIGHT * DELTA;
 
-  angularAcceleration = torque / PLAYER_INERTIA;
+	player->absVelocity = $Vec3_Length(player->obj.velocity); //.len();
 
-  player->obj.acceleration.FORWARD =  cs * acceleration.RIGHT + sn * acceleration.FORWARD;
-  player->obj.acceleration.RIGHT = -sn * acceleration.RIGHT + cs * acceleration.FORWARD;
+	// calculate rotational forces
+	f32 angularTorque = (frictionForceFront_cy + tractionForce_cy) * PLAYER_cgToFrontAxle - frictionForceRear_cy * PLAYER_cgToRearAxle;
 
-  player->obj.velocity.FORWARD += DELTA * acceleration.FORWARD;
-  player->obj.velocity.RIGHT += DELTA * acceleration.RIGHT;
+	//  Sim gets unstable at very slow speeds, so just stop the car
+	if( fabsf(player->absVelocity) < 0.5 && !throttle )
+	{
+		player->obj.velocity.FORWARD = player->obj.velocity.RIGHT = player->absVelocity = 0;
+		angularTorque = player->yawRate = 0;
+	}
 
-  player->obj.position.FORWARD += DELTA * player->obj.velocity.FORWARD;
-  player->obj.position.RIGHT += DELTA * player->obj.velocity.RIGHT;
+	f32 angularAccel = angularTorque / PLAYER_inertia;
 
-  player->angularVelocity += DELTA * angularAcceleration;
+	player->yawRate += angularAccel * DELTA;
+	player->heading += player->yawRate * DELTA;
 
-  player->angle += DELTA * player->angularVelocity;
+  player->obj.yaw = (i16) ($Rad2Deg(-player->heading));
 
-  player->obj.yaw = (i16) $Rad2Deg(player->angle);
+	//  finally we can update position
+	player->obj.position.FORWARD += player->obj.velocity.FORWARD * DELTA;
+	player->obj.position.RIGHT += player->obj.velocity.RIGHT * DELTA;
 
 }

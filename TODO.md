@@ -9,7 +9,10 @@
 - [ ] Ball physics (movement for now)
 - [ ] Collisions
 - [ ] Rotate camera around car with mouse/keys
-
+- [ ] Magnet power (3 second cooldown)
+- [ ] Punt power (push ball into goal type power, 5 second cooldown)
+- [ ] Spin car around really quickly to hit it. (3 second cooldown) - super hand brake turn - like a kick
+ 
 // Game Design
 
 1. Car game

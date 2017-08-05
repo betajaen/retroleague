@@ -221,7 +221,7 @@ extern void $Draw();
 #define $Max3(A, B, C)          ($Max(A, $Max(B, C)))
 #define $Min4(A, B, C, D)       ($Min(A, $Min(B, $Min(C, D))))
 #define $Max4(A, B, C, D)       ($Max(A, $Max(B, $Max(C, D))))
-#define $Clamp(X, MIN, MAX)     ($Max($Min(X, MIN), MAX)
+#define $Clamp(X, MIN, MAX)     (X > MAX ? MAX : X < MIN ? MIN : X)
 #define $Sign(X)                ((0 < (X)) - ((X) < 0))
 
 #define $PermaNew(TYPE)         ($Cast(TYPE*) $.Mem.PermaAllocator(NULL, sizeof(TYPE)))
