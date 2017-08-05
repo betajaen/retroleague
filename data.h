@@ -53,9 +53,12 @@ typedef struct
 typedef struct 
 {
   Object obj;
-  u8 team;             // 0 - red, 1 - blue
-  i8 steering;         // steering in whatever units. - to +
-  i8 acceleratorBrake; // < 0 brake, > 0 accelerate, 0 = none
+  u8 team;                // 0 - red, 1 - blue
+  i8 steering;            // steering in whatever units. - to +
+  i8 acceleratorBrake;    // < 0 brake, > 0 accelerate, 0 = none
+  f32 angularVelocity;    // Angular velocity of player - not related to yaw, Stored in 1/10th degrees ($Rad2Deg(DEG) * 100)
+  i8 steerAngle;          // Angle of steering of player - In degrees
+  f32 angle;              // True yaw
 } Player;
 
 typedef struct
@@ -70,6 +73,7 @@ typedef struct
   u8     deathTime;
 } Wheel;
 
+extern f32     DELTA;
 extern Surface SURFACE;
 extern Scene   SCENE;
 extern Canvas  CANVAS;

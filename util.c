@@ -1,5 +1,4 @@
 #include "funk.h"
-
 f32 ConstrainAngle(f32 x)
 {
     x = fmodf(x, 360.0f);
@@ -20,3 +19,4 @@ Vec3f RotatePointXZ(Vec3f p, f32 yaw)
 
   return p1;
 }
+

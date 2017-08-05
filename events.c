@@ -8,6 +8,8 @@ void $Setup()
   $.screenY = 120;
 #endif
 
+  DELTA = 1.0f / 60.0f;
+
   $.displayScale = 3;
 
   Mesh_MakePlayer(&MESH_PLAYER);
@@ -69,6 +71,9 @@ void $Update()
         break;
     }
   }
+
+  Game_Tick();
+
 }
 
 float rotationTimer = 0.0f;

@@ -1,7 +1,7 @@
 - [x] Fix genie file
 - [x] Decide on game features
 - [x] Make car mesh
-- [ ] Camera movement
+- [x Camera movement
 - [ ] Simple update server function (based on state of objects)
 - [ ] Controller for player object
 - [ ] Controller for networked object
