@@ -2,7 +2,7 @@
 #include <math.h>
 #include <stdio.h>
 
-// #define IS_STREAMING 1
+#define IS_STREAMING 1
 
 #define DB16_TRANSPARENT 0
 #define DB16_VERY_DARK_VIOLET 1
@@ -109,7 +109,7 @@ Triangle box[12] = {
     12)
 };
 
-Mesh  planeMesh, boxMesh;
+Mesh  planeMesh, boxMesh, camaroMesh;
 Vec3f camPos;
 f32   camRot;
 Bitmap TILESET;
@@ -123,6 +123,8 @@ Bitmap TILESET;
 #define CONTROL_UP         7
 #define CONTROL_DOWN       8
 #define SOUND_TEST         9
+
+void MakeCameroMesh(Mesh* mesh);
 
 void $Setup()
 {
@@ -138,6 +140,8 @@ void $Setup()
   planeMesh.nbTriangles = 2;
   boxMesh.triangles = &box[0];
   boxMesh.nbTriangles = 12;
+
+  MakeCameroMesh(&camaroMesh);
 
   $.Mesh.Finalise(&planeMesh);
   $.Mesh.Finalise(&boxMesh);
@@ -264,13 +268,19 @@ void $Draw()
   cubeRot = constrainAngle(cubeRot + 10.0f * delta);
   
   $.Scene.DrawSkybox(&SCENE, DB16_CADET_BLUE, DB16_LEAF);
-  $.Scene.DrawMeshXyz(&SCENE, &boxMesh, cubeRot * 0.1f ,0.5,0,  (i32) cubeRot,(i32) cubeRot, (i32) cubeRot);
-  $.Scene.DrawMeshXyz(&SCENE, &boxMesh, 1,0.5,0,  0,(i32) cubeRot, 0);
-  $.Scene.DrawCustomShaderMeshXyz(&SCENE, &boxMesh, 1, 0,0.5,1,  0,(i32) cubeRot, 0);
-  $.Scene.DrawCustomShaderMeshXyz(&SCENE, &boxMesh, 1, 0,1.5,0,  0,(i32) cubeRot, 0);
+  //$.Scene.DrawMeshXyz(&SCENE, &boxMesh, cubeRot * 0.1f ,0.5,0,  (i32) cubeRot,(i32) cubeRot, (i32) cubeRot);
+  //$.Scene.DrawMeshXyz(&SCENE, &boxMesh, 1,0.5,0,  0,(i32) cubeRot, 0);
+
+  $.Scene.DrawMeshXyz(&SCENE, &camaroMesh, 0,0,0, 0,0,0);
+  $.Scene.DrawMeshXyz(&SCENE, &camaroMesh, 2,0,0, 0,0,0);
+  $.Scene.DrawMeshXyz(&SCENE, &camaroMesh, 4,0,0, 0,0,0);
+  $.Scene.DrawMeshXyz(&SCENE, &camaroMesh, 8,0,0, 0,0,0);
+
+  //$.Scene.DrawCustomShaderMeshXyz(&SCENE, &boxMesh, 1, 0,0.5,1,  0,(i32) cubeRot, 0);
+  //$.Scene.DrawCustomShaderMeshXyz(&SCENE, &boxMesh, 1, 0,1.5,0,  0,(i32) cubeRot, 0);
   $.Scene.Render(&SCENE, &SURFACE);
 
-  $.Canvas.DrawTextF(&CANVAS, &NEOSANS, DB16_BANANA, 0, 200 - 9, "FPS %.1f", $.Stats.fps);
+  $.Canvas.DrawTextF(&CANVAS, &NEOSANS, DB16_BANANA, 0, 200 - 9, "FPS %.1f, Triangles: %i", $.Stats.fps, $.Stats.nbTriangles);
   $.Canvas.Render(&CANVAS, &SURFACE);
 
   $.Surface.Render(&SURFACE);
