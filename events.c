@@ -71,10 +71,32 @@ void $Update()
   }
 }
 
+float rotationTimer = 0.0f;
+
 void $Draw()
 {
-  $.Scene.DrawSkybox(&SCENE, DB16_CADET_BLUE, DB16_LEAF); 
+  rotationTimer += (1.0f / 60.0f) * 10.0f;
+  rotationTimer = ConstrainAngle(rotationTimer);
+  printf("%f\n", rotationTimer);
 
+  $.Scene.DrawSkybox(&SCENE, DB16_CADET_BLUE, DB16_LEAF); 
+  
+  if (ME != NULL)
+  {
+    Vec3f cameraTarget = RotatePointXZ($Vec3_Xyz(0,0,-6), ME->obj.yaw);
+    Vec3f cameraPos    = RotatePointXZ($Vec3_Xyz(0,4,6), ME->obj.yaw);
+
+    cameraPos.x += ME->obj.position.x;
+    cameraPos.y += ME->obj.position.y;
+    cameraPos.z += ME->obj.position.z;
+    
+    cameraTarget.x += ME->obj.position.x;
+    cameraTarget.y += ME->obj.position.y;
+    cameraTarget.z += ME->obj.position.z;
+
+    $.Scene.SetPovLookAt(&SCENE, cameraPos, cameraTarget);
+  }
+  
   for(u32 ii=0;ii < MAX_PLAYERS;ii++)
   {
     Player* player = &PLAYER[ii];
@@ -89,7 +111,7 @@ void $Draw()
 
   Rot3i ballRot = { 0 };
   $.Scene.DrawMesh(&SCENE, &MESH_BALL, BALL.obj.position, ballRot);
-
+  
   $.Scene.Render(&SCENE, &SURFACE);
   $.Canvas.DrawTextF(&CANVAS, &FONT, DB16_BANANA, 0, 200 - 9, "FPS %.1f, Triangles: %i", $.Stats.fps, $.Stats.nbTriangles);
   $.Canvas.Render(&CANVAS, &SURFACE);

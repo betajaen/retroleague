@@ -8,7 +8,10 @@ bool Object_IsAlive(Object* obj);
 void Mesh_MakePlayer(Mesh* mesh);
 void Mesh_MakeBall(Mesh* mesh);
 
-f32 constrainAngle(f32 x);
+
+Vec3f RotatePointXZ(Vec3f p, f32 yaw);
+f32 ConstrainAngle(f32 x);
+
 
 #endif
 
