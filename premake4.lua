@@ -27,7 +27,7 @@ solution "Retroleague"
           includedirs     { "ref/SDL2/include",  "ref/SDL2_net/include", "ref/" }
           libdirs         { "ref/SDL2/lib/x86/", "ref/SDL2_net/lib/x86/",  }
 
-          files           { "Retroleague.h", "Retroleague*.c", "TODO.md", "*.c", "*.h", "ref/*.c", "ref/*.h", "resources.rc", "resources.rc", "assets/*.png", "assets/*.wav", "assets/*.mod" }
+          files           { "TODO.md", "*.c", "*.h", "ref/*.c", "ref/*.h", "resources.rc", "resources.rc", "assets/*.png", "assets/*.wav", "assets/*.mod" }
           excludes        { "ref/*.c", "ref/*.h" }
 
       --------------------------------------------------------------------------

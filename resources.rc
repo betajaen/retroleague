@@ -1,6 +1,5 @@
-NeoSans.png RESOURCE "assets/NeoSans.png"
-tileset.png RESOURCE "assets/tileset.png"
-coin.wav RESOURCE "assets/coin.wav"
+font.png RESOURCE "assets/font.png"
+art.png RESOURCE "assets/art.png"
 dragon2.mod RESOURCE "assets/dragon2.mod"
 
 

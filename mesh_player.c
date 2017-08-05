@@ -148,7 +148,7 @@ u32 CAMARO_INDEXES[] = {
 #define NB_VERTICES  53
 #define NB_TRIANGLES 85
 
-void MakeCameroMesh(Mesh* mesh)
+void Mesh_MakePlayer(Mesh* mesh)
 {
   mesh->triangles = (Triangle*) $.Mem.PermaAllocator(NULL, sizeof(Triangle) * NB_TRIANGLES);
   mesh->nbTriangles = NB_TRIANGLES;
