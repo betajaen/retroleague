@@ -19,7 +19,7 @@ void $Setup()
   DELTA = 1.0f / 60.0f;
 
   $.title = "Retro League ///";
-  $.displayScale = 4;
+  $.displayScale = 1;
 
   Mesh_MakePlayer(&MESH_PLAYER);
   Mesh_MakeBall(&MESH_BALL);
@@ -100,6 +100,9 @@ void $Update()
     }
   }
 
+  if (ME == NULL)
+    return;
+
   if (ME != NULL)
   {
     if (CAMERA_THETA_TIME >= 0.0f)
@@ -171,6 +174,9 @@ float rotationTimer = 0.0f;
 
 void $Draw()
 {
+  if (ME == NULL)
+    return;
+  
   if ($.Input.ControlReleased(CONTROL_AUTOPILOT))
   {
     ME->autopilot = !ME->autopilot;

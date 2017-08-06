@@ -19,6 +19,14 @@ bool Object_IsAlive(Object* obj);
 void Player_Tick(Player* player);
 void Ball_Tick(Ball* ball);
 
+void Player_ReceivePartialUpdate(u8 playerIndex, const char* msg);
+void Player_ReceiveFullUpdate(u8 playerIndex, const char* msg);
+void Player_SendFullUpdate();
+void Player_SendPartialUpdate(u8 type, void* data);
+void Player_Delete(u8 playerIndex);
+void Player_DeleteMe();
+void Player_New(u8 playerIndex, bool isMe);
+
 bool Can_Power(Player* player, u32 power);
 void Activate_Power(Player* player, u32 power);
 

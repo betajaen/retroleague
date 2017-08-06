@@ -4,6 +4,19 @@ net = require('net');
 // Keep track of the chat clients
 var clients = [];
 
+var maxplayers = 4;
+
+// 
+var slots = [false,false,false,false];
+
+function getFreeSlot()
+{
+  for(var i=0;i < maxplayers;i++)
+    if (slots[i] == false)
+      return i;
+  return -1;
+}
+
 // Start a TCP Server
 net.createServer(function (socket) {
 
@@ -14,7 +27,7 @@ net.createServer(function (socket) {
   clients.push(socket);
 
   // Send a nice welcome message and announce
-  socket.write("Welcome " + socket.name + "\n");
+  socket.write("\n");
   broadcast(socket.name + " joined the chat\n", socket);
 
   // Handle incoming messages from clients.
@@ -44,4 +57,4 @@ net.createServer(function (socket) {
 }).listen(5000);
 
 // Put a friendly message on the terminal of the server.
-console.log("Chat server running at port 5000\n");
+console.log("Retro League /// Running at port 5000\n");

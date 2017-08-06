@@ -1,5 +1,6 @@
 #include "funk.h"
 #include "float.h"
+#include <string.h>
 
 #define PLAYER_gravity 9.81f  // m/s^2
 #define PLAYER_mass  1200.0f  // kg
@@ -697,5 +698,48 @@ void Ball_Tick(Ball* ball)
       ball->magnet = 255;
     }
 
+  }
+}
+
+
+void Player_ReceivePartialUpdate(u8 playerIndex, const char* msg)
+{
+  // @TODO
+}
+
+void Player_ReceiveFullUpdate(u8 playerIndex, const char* msg)
+{
+  // @TODO
+}
+
+void Player_SendFullUpdate()
+{
+}
+
+void Player_SendPartialUpdate(u8 type, void* data)
+{
+}
+
+void Player_Delete(u8 playerIndex)
+{
+  memset(&PLAYER[playerIndex], 0, sizeof(Player));
+  PLAYER->obj.type = OT_NONE;
+  if (BALL.magnet == playerIndex)
+    BALL.magnet = 255;
+}
+
+void Player_DeleteMe()
+{
+  Player_Delete(FindPlayerIndex(ME));
+}
+
+void Player_New(u8 playerIndex, bool isMe)
+{
+  memset(&PLAYER[playerIndex], 0, sizeof(Player));
+  PLAYER->obj.type = OT_PLAYER;
+
+  if (isMe)
+  {
+    ME = &PLAYER[playerIndex];
   }
 }
