@@ -292,10 +292,31 @@ void Player_AI_TickPuntState(Player* player, Ball* ball)
 void Player_AI_StartMagnetState(Player* player, Ball* ball)
 {
   player->ai.state = AI_STATE_POWER_MAGNET;
+  
+  Pid* throttle = &player->ai.PID_THROTTLE_BRAKE;
+  Pid* steering = &player->ai.PID_STEERING;
+
+  MakePidDefaults1(throttle);
+  throttle->min = 0;
+  throttle->max = 100.0f;
+  MakePidDefaults1(steering);
+  steering->min = -$Deg2Rad(80.0f);
+  steering->max = $Deg2Rad(80.0f);
 }
 
 void Player_AI_TickMagnetState(Player* player, Ball* ball)
 {
+  Vec3f tgt;
+  tgt.x = 0.0f;
+  tgt.y = 0.0f;
+
+  if (player->team == 0)
+    tgt.z = BOUNDS_SIZE_HALF_F;
+  else if (player->team == 1)
+    tgt.z = -BOUNDS_SIZE_HALF_F;
+
+  Player_AI_UpdateSteering(player, tgt);
+  Player_AI_UpdateThrottle(player, 25.0f);
 }
 
 void Player_AI_StartSpinState(Player* player, Ball* ball)
@@ -309,6 +330,14 @@ void Player_AI_TickSpinState(Player* player, Ball* ball)
 
 void Player_AI_Resolve(Player* player, Ball* ball)
 {
+  if (player->ai.state == AI_STATE_POWER_MAGNET)
+  {
+    if (ball->magnet == 255)
+    {
+      Player_AI_StartMoveTowardsBall(player, ball);
+    }
+  }
+
   f32 ballDistance = $Vec3_Length($Vec3_Sub(player->obj.position, ball->obj.position));
 
   if (ballDistance <= 6)
@@ -316,11 +345,17 @@ void Player_AI_Resolve(Player* player, Ball* ball)
     // @TODO power here.
     //  Dice rolls for powers.
     //  Magnetic and spin are more difficult to roll for.
-
-    if (Can_Power(player, POWER_PUNT))
+    
+    if (Can_Power(player, POWER_MAGNET))
+    {
+      Activate_Power(player, POWER_MAGNET);
+      Player_AI_StartMagnetState(player, ball);
+    }
+    else if (Can_Power(player, POWER_PUNT))
     {
       Activate_Power(player, POWER_PUNT);
     }
+
   }
 }
 
@@ -373,7 +408,12 @@ const char* POWERS_NAME[MAX_POWERS] = {
 
 bool Can_Power(Player* player, u32 power)
 {
-  return (player->powerAvailable & (1 << power)) != 0;
+  bool canPower = (player->powerAvailable & (1 << power)) != 0;
+
+  if (power == POWER_MAGNET)
+    return BALL.magnet == 255 && canPower;
+
+  return canPower;
 }
 
 void Activate_Power(Player* player, u32 power)
