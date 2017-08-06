@@ -23,6 +23,28 @@ Vec3f TransformWorldPointToLocalSpaceXZ(Vec3f selfPosition, i32 selfRotation, Ve
   return r;
 }
 
+Vec3f TransformWorldPointToLocalSpaceXZRad(Vec3f selfPosition, f32 rad, Vec3f otherPosition)
+{
+  Vec3f r;
+  r.x = 0;
+  r.y = 0;
+  r.z = 0;
+
+  /*
+      x'  =  x * cos(t) - z * sin(t)
+      y'  =  x * sin(t) + z * cos(t)
+  */
+  f32 c = cosf(rad), s = sinf(rad);
+
+  f32 dx = otherPosition.x - selfPosition.x;
+  f32 dz = otherPosition.z - selfPosition.z;
+
+  r.x = dx * c - dz * s;
+  r.z = dx * s + dz * c;
+  
+  return r;
+}
+
 Vec3f TransformLocalPointToWorldSpaceXZ(Vec3f selfPosition, i32 selfRotation, Vec3f otherPosition)
 {
   Vec3f r;

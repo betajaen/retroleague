@@ -209,8 +209,8 @@ void Player_AI_StartMoveTowardsBall(Player* player, Ball* ball)
 
   MakePidDefaults1(throttle);
   MakePidDefaults1(steering);
-  steering->min = -PLAYER_maxSteer;
-  steering->max = PLAYER_maxSteer;
+  steering->min = -$Deg2Rad(80.0f);
+  steering->max = $Deg2Rad(80.0f);
 }
 
 void Player_AI_TickMoveTowardsBall(Player* player, Ball* ball)
@@ -218,20 +218,29 @@ void Player_AI_TickMoveTowardsBall(Player* player, Ball* ball)
   Pid* throttle = &player->ai.PID_THROTTLE_BRAKE;
   Pid* steering = &player->ai.PID_STEERING;
   
-  Vec3f s =  player->obj.position;
-  Vec3f t = BALL.obj.position;
+  Vec3f playerPos     = player->obj.position;
+  f32   playerHeading = player->heading;
 
-  t = TransformWorldPointToLocalSpaceXZ(s, player->obj.yaw, t);
+  Vec3f ballPosWorld  = BALL.obj.position;
+  Vec3f ballPosLocal  = TransformWorldPointToLocalSpaceXZRad(playerPos, playerHeading, ballPosWorld);
 
-  f32 angle = atan2f(t.z,t.x) + $Deg2Rad(-90.0f); // - atan2f(s.z,s.x);
+  Vec3f ballDirection = $Vec3_Normalise(ballPosLocal);
+  Vec3f forward       = $Vec3_Xyz(0,0,1);
 
+  f32   dot           = $Vec3_DotXZ(ballDirection, forward);
 
-  PID_DEBUG("Angle=%f", $Rad2Deg(angle));
+  f32   angle          = acosf(dot);
 
-  f32 error = -PidError($Deg2Rad(0.0f), angle);
+  f32   atanf2_angle   = atan2f((forward.z - ballDirection.z), (forward.x - ballDirection.x));
+
+  f32   sign = $SignF(($Rad2Deg(atanf2_angle) - 90.0f));
+
+  f32   signedAngle = angle * sign * -1.0f;
+
+  f32 error = PidError(0.0f, signedAngle);
   f32 newSteering = UpdatePid(steering, error, $.fixedDeltaTime);
-  player->steering = newSteering;
-  PID_DEBUG("Err=%f NewAdd=%f, Steering=%f", $Rad2Deg(error), $Rad2Deg(newSteering), $Rad2Deg(player->steering));
+  player->steering += newSteering * $.fixedDeltaTime;
+  PID_DEBUG("Dot-%.2f, Error= %.2f, Steering=%.2f, Angle=%.2f Signed=%.2f  ATan2=%.2f", dot, error, newSteering, $Rad2Deg(angle), $Rad2Deg(signedAngle), $Rad2Deg(atanf2_angle) - 90.0f);
 }
 
 void Player_AI_StartShootState(Player* player, Ball* ball)
@@ -293,6 +302,32 @@ void Player_Tick(Player* player)
   }
   else if (player == ME)
   {
+      Vec3f playerPos     = player->obj.position;
+      f32   playerHeading = player->heading;
+
+      Vec3f ballPosWorld  = BALL.obj.position;
+      Vec3f ballPosLocal  = TransformWorldPointToLocalSpaceXZRad(playerPos, playerHeading, ballPosWorld);
+
+      Vec3f ballDirection = $Vec3_Normalise(ballPosLocal);
+      Vec3f forward       = $Vec3_Xyz(0,0,1);
+
+      f32   dot           = $Vec3_DotXZ(ballDirection, forward);
+
+      printf("[-] %.1f %.1f  %.1f %.1f = %.2f\n", ballDirection.x, ballDirection.z, forward.x, forward.z, dot);
+
+
+
+
+
+
+
+
+
+
+
+
+
+  #if 0
 //      Vec3f car = player->obj.position;
       Vec3f ball = BALL.obj.position;
 
@@ -324,7 +359,7 @@ void Player_Tick(Player* player)
         printf("[-] LEFT=%.1f HED = %.1f  FWD %.1f %.1f\n", angle, $Rad2Deg(player->heading), fwd.x, fwd.z);
       else
         printf("[-] RIGH=%.1f HED = %.1f  FWD %.1f %.1f\n", angle, $Rad2Deg(player->heading), fwd.x, fwd.z);
-
+        #endif
     }
   
     Player_TickBallCollision(player, &BALL);

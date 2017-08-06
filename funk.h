@@ -51,6 +51,8 @@ bool IntersectPointXZRadius(Vec3f center, Vec3f halfSize, Vec3f min, Vec3f max, 
 
 Vec3f TransformWorldPointToLocalSpaceXZ(Vec3f selfPosition, i32 selfRotation, Vec3f otherPosition);
 
+Vec3f TransformWorldPointToLocalSpaceXZRad(Vec3f selfPosition, f32 heading, Vec3f otherPosition);
+
 Vec3f TransformLocalPointToWorldSpaceXZ(Vec3f selfPosition, i32 selfRotation, Vec3f otherPosition);
 
 Vec3f TransformLocalPointToWorldSpaceXZRad(Vec3f selfPosition, f32 heading, Vec3f otherPosition);
