@@ -84,8 +84,8 @@ static void Draw_Scene()
 
   $.Scene.DrawSkybox(&SCENE, DB16_VERY_DARK_VIOLET, DB16_SHADOWY_LAVENDER);
 
-  const u32 dotDistance = 8;
-  u32 nbDots = BOUNDS_SIZE_I / 8;
+  const u32 dotDistance = 4;
+  u32 nbDots = BOUNDS_SIZE_I / 4;
 
   for(u32 ii=0;ii < nbDots;ii++)
   {
@@ -112,31 +112,30 @@ static void Draw_Scene()
     }
   }
 
-  if (ME != NULL)
+  // $.Scene.DrawGroundLine(&SCENE, DB16_BANANA, ME->obj.position.x, ME->obj.position.z, BALL.obj.position.x, BALL.obj.position.z);
+
+  if (ME->anim.state != ANIMATION_STATE_SPIN)
   {
+    const f32 cameraDistance = 6.0f;
+    f32 c = cosf($Deg2Rad(CAMERA_THETA)) * 6.0f;
+    f32 s = sinf($Deg2Rad(CAMERA_THETA)) * 6.0f;
 
-    if (ME->anim.state != ANIMATION_STATE_SPIN)
-    {
-      const f32 cameraDistance = 6.0f;
-      f32 c = cosf($Deg2Rad(CAMERA_THETA)) * 6.0f;
-      f32 s = sinf($Deg2Rad(CAMERA_THETA)) * 6.0f;
-
-      Vec3f cameraTarget = RotatePointXZ($Vec3_Xyz(c,0,s), ME->obj.yaw);
+    Vec3f cameraTarget = RotatePointXZ($Vec3_Xyz(c,0,s), ME->obj.yaw);
     
-      Vec3f cameraPos    = RotatePointXZ($Vec3_Xyz(-c,4,-s), ME->obj.yaw);
+    Vec3f cameraPos    = RotatePointXZ($Vec3_Xyz(-c,4,-s), ME->obj.yaw);
 
-      cameraPos.x += ME->obj.position.x;
-      cameraPos.y += ME->obj.position.y;
-      cameraPos.z += ME->obj.position.z;
+    cameraPos.x += ME->obj.position.x;
+    cameraPos.y += ME->obj.position.y;
+    cameraPos.z += ME->obj.position.z;
     
-      cameraTarget.x += ME->obj.position.x;
-      cameraTarget.y += ME->obj.position.y;
-      cameraTarget.z += ME->obj.position.z;
+    cameraTarget.x += ME->obj.position.x;
+    cameraTarget.y += ME->obj.position.y;
+    cameraTarget.z += ME->obj.position.z;
 
-      $.Scene.SetPovLookAt(&SCENE, cameraPos, cameraTarget);
-    }
+    $.Scene.SetPovLookAt(&SCENE, cameraPos, cameraTarget);
   }
-  
+
+ 
   for(u32 ii=0;ii < MAX_PLAYERS;ii++)
   {
     Player* player = &PLAYER[ii];
@@ -162,8 +161,9 @@ static void Draw_Scene()
   }*/
 
   $.Scene.Render(&SCENE, &SURFACE);
-  $.Canvas.DrawTextF(&CANVAS, &FONT, DB16_BANANA, 0, 200 - 9, "FPS %.1f, Triangles: %i Yaw: %i", $.Stats.fps, $.Stats.nbTriangles, ME->obj.yaw);
+  $.Canvas.DrawTextF(&CANVAS, &FONT, DB16_REGENT_GREY, 0, 200 - 9, "F%03iT%03i", (i32) $.Stats.fps, $.Stats.nbTriangles);
   
+  #if 0
   for(u32 ii=0;ii < MAX_PLAYERS;ii++)
   {
     Player* player = &PLAYER[ii];
@@ -175,34 +175,39 @@ static void Draw_Scene()
       $Rad2Deg(player->heading)
       );
   }
+  #endif
   
   if (ME != NULL)
   {
    if (ME->autopilot)
    {  
-    $.Canvas.DrawText(&CANVAS, &FONT, DB16_INDIGO, 0, 9, "<<<AUTO-PILOT>>>");
+    $.Canvas.DrawText(&CANVAS, &FONT, DB16_BANANA, 320 / 2 - 42, 24, "<<AUTO PILOT>>");
    }
+
+   u32 power_width = MAX_POWERS * 9;
 
    for(u32 ii=0;ii < MAX_POWERS;ii++)
    {
       if (Can_Power(ME, ii))
       {
-        $.Canvas.DrawTextF(&CANVAS, &FONT, DB16_INDIGO, 0, 18 + (ii * 9), "%s RDY", POWERS_NAME[ii]);
+        $.Canvas.DrawTextF(&CANVAS, &FONT, DB16_INDIGO + ii, (320 / 2 - power_width) + ii * 9, 200 - 11, "%c", POWERS_NAME[ii][0]);
       }
       else
       {
-        $.Canvas.DrawTextF(&CANVAS, &FONT, DB16_INDIGO, 0, 18 + (ii * 9), "%s %.1f",  POWERS_NAME[ii], ME->powerCooldown[ii]);
+        $.Canvas.DrawTextF(&CANVAS, &FONT, DB16_REGENT_GREY, (320 / 2 - power_width) + ii * 9, 200 - 11, "-");
       }
    }
 
   }
   
+  #if 0
     $.Canvas.DrawTextF(&CANVAS, &FONT, DB16_BANANA, 0, 200 - 18, "BALL: %.1f %.1f",
      BALL.obj.position.x, BALL.obj.position.z, 
      BALL.obj.velocity.x, BALL.obj.velocity.z);
-
+  #endif
   
-   $.Canvas.DrawTextF(&CANVAS, &FONT, DB16_FADED_RED, 0, 0, "R: %i B: %i", BALL.red, BALL.blue);
+  $.Canvas.DrawTextF(&CANVAS, &FONT, DB16_FADED_RED, 320 / 2 - 20, 2, "%i", BALL.red);
+  $.Canvas.DrawTextF(&CANVAS, &FONT, DB16_CADET_BLUE, 320 / 2 + 20, 2, "%i", BALL.blue);
 
 
   $.Canvas.Render(&CANVAS, &SURFACE);

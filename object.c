@@ -419,7 +419,7 @@ void Player_TickAI(Player* player, Ball* ball)
 }
 
 const char* POWERS_NAME[MAX_POWERS] = {
-  "PUNT",
+  "KICK",
   "MAGNET",
   "SPIN"
 };

@@ -131,6 +131,7 @@ typedef struct
     void (*SetPovLookAtXyz)(Scene* scene, f32 px, f32 py, f32 pz, f32 tx, f32 ty, f32 tz);
     void (*DrawSkybox)(Scene* scene, u8 sky, u8 ground);
     void (*DrawGroundDot)(Scene* scene, u8 colour, f32 x, f32 z);
+    void (*DrawGroundLine)(Scene* scene, u8 colour, f32 x0, f32 z0, f32 x1, f32 z1);
     void (*DrawMesh)(Scene* scene, Mesh* mesh, Vec3f position, Rot3i rotation);
     void (*DrawMeshXyz)(Scene* scene, Mesh* mesh, f32 x, f32 y, f32 z, i16 pitch, i16 yaw, i16 roll);
     void (*DrawCustomShaderMesh)(Scene* scene, Mesh* mesh, u8 shader, Vec3f position, Rot3i rotation);

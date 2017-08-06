@@ -26,6 +26,7 @@
   #undef PeekMessage
   #undef far
   #undef near
+  #undef y0
 #elif $IsBrowser == 1
   #include <emscripten.h>
 #endif
@@ -46,6 +47,7 @@ Synthwave $;
 #define SDC_DrawModel     1
 #define SDC_DrawSkybox    2
 #define SDC_DrawGroundDot 3
+#define SDC_DrawGroundLine 4
 
 typedef struct
 {
@@ -55,6 +57,7 @@ typedef struct
     struct { Mesh* mesh; Vec3f position; Rot3i rotation; u8 shader; } drawModel;
     struct { u8 sky, ground; } drawSkyBox;
     struct { f32 x, z; u8 colour; } drawGroundDot;
+    struct { f32 x0, z0, x1, z1; u8 colour; } drawGroundLine;
   };
 } $$SceneDrawCmd;
 
@@ -505,7 +508,7 @@ void Canvas_Render(Canvas* canvas, Surface* surface)
       case CDC_DrawText:
       {
         Colour* k = &$$.palette->colours[cmd->drawText.c];
-        SDL_SetRenderDrawColor($$.renderer, k->r, k->g, k->b, 0xFF);
+        SDL_SetTextureColorMod((SDL_Texture*) cmd->drawText.font->texture, k->r, k->g, k->b);
         
         SDL_Rect dst, src;
         src.x = 0;
@@ -1299,6 +1302,61 @@ void $$Scene_DrawGroundDot($$Scene* scene, $$FrameBuffer* fb, Mat44* vpsMatrix, 
   }
 }
 
+void $$Scene_DrawGroundLine($$Scene* scene, $$FrameBuffer* fb, Mat44* vpsMatrix, f32 x0, f32 z0, f32 x1, f32 z1, u8 colour)
+{
+  return;
+
+  Vec4f u[2];
+  u[0].x = x0;
+  u[0].y = 0.0f;
+  u[0].z = z0;
+  u[0].w = 1.0f;
+
+  u[1].x = x1;
+  u[1].y = 0.0f;
+  u[1].z = z1;
+  u[1].w = 1.0f;
+
+  Vec4f v[2];
+
+  $Mat44_MultiplyVec4(&v[0], vpsMatrix, &u[0]);
+  $Mat44_MultiplyVec4(&v[1], vpsMatrix, &u[1]);
+  
+  if ( (v[0].z <= v[0].w) && (v[1].z <= v[1].w))
+  {
+    v[0].x = v[0].x / v[0].w;
+    v[0].y = v[0].y / v[0].w;
+    v[1].x = v[1].x / v[1].w;
+    v[1].y = v[1].y / v[1].w;
+    
+    RVec r[2];
+    $$Vec4_XForm(&r[0], &v[0]);
+    $$Vec4_XForm(&r[1], &v[1]);
+    
+    i32 minX = $Max($Min(r[0].x, r[1].x), 0) & (i32) 0xFFFFFFFE;
+    i32 maxX = $Min($Max(r[0].x, r[1].x), (fb->width - 1));
+    i32 minY = $Max($Min(r[0].y, r[1].y), 0) & (i32) 0xFFFFFFFE;
+    i32 maxY = $Min($Max(r[0].y, r[1].y), (fb->height - 1));
+    if(maxX < minX || maxY < minY)
+      return;
+
+    $$FrameBuffer_StoreColour(fb, minX, minY, colour);
+    // $$FrameBuffer_StoreColour(fb, maxX, maxY, colour);
+  int dx = abs(maxX-minX), sx = minX<maxX ? 1 : -1;
+  int dy = abs(maxY-minY), sy = minY<maxY ? 1 : -1; 
+  int err = (dx>dy ? dx : -dy)/2, e2;
+ 
+  for(;;){
+    $$FrameBuffer_StoreColour(fb, minX,minY, colour);
+    if (minX==maxX && minY==maxY) break;
+    e2 = err;
+    if (e2 >-dx) { err -= dy; minX += sx; }
+    if (e2 < dy) { err += dx; minY += sy; }
+  }
+
+  }
+}
+
 #define $$RENDER_TYPE 0
 
 void Scene_Render(Scene* scene, Surface* surface)
@@ -1379,6 +1437,11 @@ void Scene_Render(Scene* scene, Surface* surface)
       case SDC_DrawGroundDot:
       {
         $$Scene_DrawGroundDot(s, fb, &s->vpsMatrix, cmd->drawGroundDot.x, cmd->drawGroundDot.z, cmd->drawGroundDot.colour);
+      }
+      break;
+      case SDC_DrawGroundLine:
+      {
+        $$Scene_DrawGroundLine(s, fb, &s->vpsMatrix, cmd->drawGroundLine.x0, cmd->drawGroundLine.z0, cmd->drawGroundLine.x1, cmd->drawGroundLine.z1, cmd->drawGroundLine.colour);
       }
       break;
     }
@@ -1543,6 +1606,21 @@ void Scene_DrawGroundDot(Scene* scene, u8 colour, f32 x, f32 z)
   cmd->drawGroundDot.x        = x;
   cmd->drawGroundDot.z        = z;
   cmd->drawGroundDot.colour   = colour;
+}
+
+void Scene_DrawGroundLine(Scene* scene, u8 colour, f32 x0, f32 z0, f32 x1, f32 z1)
+{
+  $EnsureOpaque(scene);
+  $$Scene* s = $$CastOpaque($$Scene, scene);
+  
+  $$SceneDrawCmd* cmd;
+  $Array_PushAndFillOut(s->drawCmds, cmd);
+  cmd->type                    = SDC_DrawGroundLine;
+  cmd->drawGroundLine.x0       = x0;
+  cmd->drawGroundLine.z0       = z0;
+  cmd->drawGroundLine.x1       = x1;
+  cmd->drawGroundLine.z1       = z1;
+  cmd->drawGroundLine.colour   = colour;
 }
 
 #define TF_NONE    0
@@ -2629,6 +2707,7 @@ void $$SetupApi()
   $.Scene.DrawCustomShaderMesh      = Scene_DrawCustomShaderMesh;
   $.Scene.DrawCustomShaderMeshXyz   = Scene_DrawCustomShaderMeshXyz;
   $.Scene.DrawGroundDot             = Scene_DrawGroundDot;
+  $.Scene.DrawGroundLine            = Scene_DrawGroundLine;
   $.Sound.New                       = Sound_New;
   $.Sound.Play                      = Sound_Play;
   $.Sound.MuteAll                   = Sound_MuteAll;
