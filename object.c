@@ -346,18 +346,23 @@ void Player_AI_Resolve(Player* player, Ball* ball)
     //  Dice rolls for powers.
     //  Magnetic and spin are more difficult to roll for.
     
-    if (Can_Power(player, POWER_MAGNET))
+    // int playerIndex = FindPlayerIndex(player);
+
+    if (ball->magnet == 255)
     {
-      Activate_Power(player, POWER_MAGNET);
-      Player_AI_StartMagnetState(player, ball);
-    }
-    else if (Can_Power(player, POWER_SPIN))
-    {
-      Activate_Power(player, POWER_SPIN);
-    }
-    else if (Can_Power(player, POWER_PUNT))
-    {
-      Activate_Power(player, POWER_PUNT);
+      if (Can_Power(player, POWER_MAGNET))
+      {
+        Activate_Power(player, POWER_MAGNET);
+        Player_AI_StartMagnetState(player, ball);
+      }
+      else if (Can_Power(player, POWER_SPIN))
+      {
+        Activate_Power(player, POWER_SPIN);
+      }
+      else if (Can_Power(player, POWER_PUNT))
+      {
+        Activate_Power(player, POWER_PUNT);
+      }
     }
 
   }
@@ -525,6 +530,12 @@ void Power_Activate_Spin(Player* player, Ball* ball)
   player->absVelocity = 0;
   player->carAcceleration = $Vec3_Xyz(0,0,0);
   player->obj.acceleration = $Vec3_Xyz(0,0,0);
+
+  AnimateSpin(&player->anim,
+    $Deg2Rad(40),
+    player->heading,
+    10.0f 
+  );
 
   #if 0
   AnimateMoveXZ(&player->anim,

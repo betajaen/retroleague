@@ -75,6 +75,7 @@ typedef struct
 
 #define ANIMATION_STATE_NONE 0
 #define ANIMATION_STATE_MOVE_XZ 1
+#define ANIMATION_STATE_SPIN 2
 
 typedef struct
 {
