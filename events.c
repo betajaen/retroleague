@@ -19,7 +19,7 @@ void $Setup()
   DELTA = 1.0f / 60.0f;
 
   $.title = "Retro League ///";
-  $.displayScale = 3;
+  $.displayScale = 4;
 
   Mesh_MakePlayer(&MESH_PLAYER);
   Mesh_MakeBall(&MESH_BALL);

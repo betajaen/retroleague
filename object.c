@@ -351,6 +351,10 @@ void Player_AI_Resolve(Player* player, Ball* ball)
       Activate_Power(player, POWER_MAGNET);
       Player_AI_StartMagnetState(player, ball);
     }
+    else if (Can_Power(player, POWER_SPIN))
+    {
+      Activate_Power(player, POWER_SPIN);
+    }
     else if (Can_Power(player, POWER_PUNT))
     {
       Activate_Power(player, POWER_PUNT);
@@ -488,7 +492,52 @@ void Power_Activate_Magnet(Player* player, Ball* ball)
 void Power_Activate_Spin(Player* player, Ball* ball)
 {
   player->powerCooldown[POWER_SPIN] = 2.0f;
-  printf("** Spin\n");
+  
+  Vec3f ballPos = ball->obj.position;
+  f32 distance = $Vec3_Length($Vec3_Sub(player->obj.position, ballPos));
+  
+  if (distance > 6.0f)
+  {
+    player->powerAvailable |= POWER_BIT_SPIN;
+    player->powerCooldown[POWER_SPIN] = 0.0f;
+    return;
+  }
+  
+  player->powerCooldown[POWER_SPIN] = 1.0f;
+
+  Vec3f tgt;
+  tgt.x = 0.0f;
+  tgt.y = 0.0f;
+
+  if (player->team == 0)
+    tgt.z = BOUNDS_SIZE_HALF_F;
+  else if (player->team == 1)
+    tgt.z = -BOUNDS_SIZE_HALF_F;
+
+  Vec3f direction = player->obj.velocity;
+  direction = $Vec3_Normalise(direction);
+
+  f32 force = 400.0f;
+  ball->obj.velocity = $Vec3_Add(ball->obj.velocity, $Vec3_MulS(direction, force));
+
+  player->carVelocity = $Vec3_Xyz(0,0,0);
+  player->obj.velocity = $Vec3_Xyz(0,0,0);
+  player->absVelocity = 0;
+  player->carAcceleration = $Vec3_Xyz(0,0,0);
+  player->obj.acceleration = $Vec3_Xyz(0,0,0);
+
+  #if 0
+  AnimateMoveXZ(&player->anim,
+    player->obj.position,
+    $Vec3_Add(ballPos, $Vec3_MulS(direction, 10.0f)),
+    player->heading,
+    player->heading,
+    8.0f,
+    1.0f
+  );
+  #endif
+
+
 }
 
 void Player_Tick(Player* player)
@@ -497,12 +546,6 @@ void Player_Tick(Player* player)
   for(u32 ii=0;ii < MAX_POWERS;ii++)
   {
     player->powerCooldown[ii] -= $.fixedDeltaTime;
-
-    if (player->powerCooldown[ii] > 0.0f)
-    {
-      printf("%s = %f\n", POWERS_NAME[ii], player->powerCooldown[ii]);
-    }
-
     if (player->powerCooldown[ii] <= 0.0f && Can_Power(player, ii) == false)
     {
       printf("** Power Available: %s\n", POWERS_NAME[ii]);
