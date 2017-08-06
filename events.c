@@ -30,7 +30,7 @@ void $Setup()
   $.Input.BindControl(CONTROL_CAMERA_LEFT,  $KEY_Q);
   $.Input.BindControl(CONTROL_CAMERA_RIGHT, $KEY_E);
   $.Input.BindControl(CONTROL_HANDBRAKE,    $KEY_SPACE);
-  $.Input.BindControl(CONTROL_AUTOPILOT,         $KEY_1);
+  $.Input.BindControl(CONTROL_AUTOPILOT,         $KEY_TAB);
   $.Input.BindControl(SOUND_TEST,           $KEY_C);
   
 }
@@ -152,7 +152,6 @@ void $Update()
   }
 
   Game_Tick();
-
 }
 
 float rotationTimer = 0.0f;
@@ -161,7 +160,6 @@ void $Draw()
 {
   if ($.Input.ControlReleased(CONTROL_AUTOPILOT))
   {
-    printf("Autopilot\n");
     ME->autopilot = !ME->autopilot;
   }
   

@@ -218,43 +218,20 @@ void Player_AI_TickMoveTowardsBall(Player* player, Ball* ball)
   Pid* throttle = &player->ai.PID_THROTTLE_BRAKE;
   Pid* steering = &player->ai.PID_STEERING;
   
-  Vec3f s = player->obj.position;
-  s.y = 0;
-  Vec3f t = ball->obj.position;
-  t.y = 0;
-  Vec3f direction = $Vec3_Sub(ball->obj.position, player->obj.position);
-  f32 distance  = $Vec3_Length(direction);
-  direction = $Vec3_Normalise(direction);
-  
-  t.x -= s.z;
-  t.z -= s.z;
-  
-  f32 angle = atan2f(t.z, t.y);
-  
-  angle = atan2f(sinf(angle), cosf(angle));
+  Vec3f s =  player->obj.position;
+  Vec3f t = BALL.obj.position;
 
-  //f32 angle = atan2f(t.z, t.x) + $Deg2Rad(-90.0f);
+  t = TransformWorldPointToLocalSpaceXZ(s, player->obj.yaw, t);
 
-  //f32 angle = acosf($Vec3_Dot(s, t)/( $Vec3_Length(s) * $Vec3_Length(t) ));
+  f32 angle = atan2f(t.z,t.x) + $Deg2Rad(-90.0f); // - atan2f(s.z,s.x);
 
-  //f32 angle = (atan2f(t.z, t.x) - atan2f(s.z, s.x));
-  
-  //angle = atan2f(sinf(angle), cosf(angle));
-
-  //if (angle < 0) angle += 2 * $PI;
-  //angle = $Rad2Deg(angle);
 
   PID_DEBUG("Angle=%f", $Rad2Deg(angle));
 
-  f32 error = PidError($Deg2Rad(90.0f), angle);
-  error = atan2f(sinf(error ), cosf(error ));
+  f32 error = PidError($Deg2Rad(0.0f), angle);
   f32 newSteering = UpdatePid(steering, error, $.fixedDeltaTime);
-  
-  newSteering = atan2f(sinf(newSteering ), cosf(newSteering ));
-
   PID_DEBUG("Err=%f NewAdd=%f, Steering=%f", $Rad2Deg(error), $Rad2Deg(newSteering), $Rad2Deg(player->steering));
-  player->steering = newSteering; // * $.fixedDeltaTime; // $Deg2Rad(newSteering);
-  
+  player->steering = newSteering;
 }
 
 void Player_AI_StartShootState(Player* player, Ball* ball)
@@ -314,9 +291,23 @@ void Player_Tick(Player* player)
   {
     Player_TickAI(player, &BALL);
   }
+  else if (player == ME)
+  {
+    Vec3f s =  player->obj.position;
+    Vec3f t = BALL.obj.position;
+
+    t = TransformWorldPointToLocalSpaceXZ(s, player->obj.yaw, t);
+
+    f32 angle = atan2f(t.z,t.x) + $Deg2Rad(-90.0f); // - atan2f(s.z,s.x);
+
+    //$Vec3_Dot(s, t);
+    // atan2f(t.z, t.x) + $Deg2Rad(90.0f);
+
+    printf("[-]Angle=%f\n", $Rad2Deg(angle));
+    }
   
-  Player_TickBallCollision(player, &BALL);
-  Player_TickPhysics(player);
+    Player_TickBallCollision(player, &BALL);
+    Player_TickPhysics(player);
 }
 
 #define BALL_MASS 1200
