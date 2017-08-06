@@ -239,7 +239,7 @@ void Player_AI_TickMoveTowardsBall(Player* player, Ball* ball)
 
   f32 error = PidError(0.0f, signedAngle);
   f32 newSteering = UpdatePid(steering, error, $.fixedDeltaTime);
-  player->steering += newSteering * $.fixedDeltaTime;
+  player->steering += newSteering;
   PID_DEBUG("Dot-%.2f, Error= %.2f, Steering=%.2f, Angle=%.2f Signed=%.2f  ATan2=%.2f", dot, error, newSteering, $Rad2Deg(angle), $Rad2Deg(signedAngle), $Rad2Deg(atanf2_angle) - 90.0f);
 }
 
