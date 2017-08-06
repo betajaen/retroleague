@@ -231,13 +231,16 @@ extern void $Draw();
 #define $Sign(X)                ((0 < (X)) - ((X) < 0))
 #define $SignF(X)               (X < 0.0f ? -1.0f : 1.0f)
 #define $Squared(X)             ((X) * (X))
+#define $Lerp(X, Y, T)          (X + T * (Y - X))
+
+f32 $WrapMax(f32 x, f32 max);
+f32 $WrapMinMax(f32 x, f32 min, f32 max);
 
 #define $PermaNew(TYPE)         ($Cast(TYPE*) $.Mem.PermaAllocator(NULL, sizeof(TYPE)))
 #define $PermaDelete(OBJ)       $Scope(($.Mem.PermaAllocator(OBJ, 0)); OBJ = NULL;)
 
 #define $TempNew(TYPE)          ($Cast(TYPE*) $.Mem.TempAllocator(sizeof(TYPE)))
 #define $TempNewA(TYPE, N)      ($Cast(TYPE*) $.Mem.TempAllocator(sizeof(TYPE) * N))
-
 
 #define $PI                     3.14159265358979323846264338327950288f
 #define $Rad2Deg(V)             ((V) * 180.0f / $PI)
@@ -286,6 +289,24 @@ inline f32   $Vec3_Dot(Vec3f a, Vec3f b)  { return a.x * b.x + a.y * b.y + a.z *
 inline f32   $Vec3_DotXZ(Vec3f a, Vec3f b)  { return a.x * b.x + a.z * b.z;          }
 inline f32   $Vec3_Dot4(Vec4f a, Vec4f b)  { return a.x * b.x + a.y * b.y + a.z * b.z;          }
 
+inline Vec3f $Vec3_Lerp(Vec3f x, Vec3f y, f32 t)
+{
+  Vec3f r;
+  r.x = $Lerp(x.x, y.x, t);
+  r.y = $Lerp(x.y, y.y, t);
+  r.z = $Lerp(x.z, y.z, t);
+  return r;
+}
+
+inline Vec3f $Vec3_LerpXZ(Vec3f x, Vec3f y, f32 t)
+{
+  Vec3f r;
+  r.x = $Lerp(x.x, y.x, t);
+  r.y = 0.0f;
+  r.z = $Lerp(x.z, y.z, t);
+  return r;
+}
+
 Vec3f $Vec3_Cross(Vec3f a, Vec3f b);
 inline f32 $Vec3_CrossXZ(Vec3f a,Vec3f b) { 
     return (a.x*b.z) - (a.z*b.x);
@@ -322,6 +343,10 @@ void $Mat44_RotMatrixY(Mat44* m, f32 yDeg);
 void $Mat44_RotMatrixZ(Mat44* m, f32 zDeg);
 void $Mat44_RotMatrixZXY(Mat44* m, Rot3i rot);
 void $Mat44_MultiplyTransform(Mat44* m, Vec3f t);
+
+f32 $Rad_Lerp(f32 x, f32 y, f32 t);
+f32 $Rad_Wrap_0_Pi(f32 v);
+f32 $Rad_Wrap_NegHalfPi_PosHalfPi(f32 v);
 
 #define $Array(TYPE) TYPE*
 #define $Array_Header(A)                ($Cast(ArrayHeader*)(A) - 1)

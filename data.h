@@ -73,6 +73,17 @@ typedef struct
   Pid a, b;
 } Ai;
 
+#define ANIMATION_STATE_NONE 0
+#define ANIMATION_STATE_MOVE_XZ 1
+
+typedef struct
+{
+  u8 state;
+  Vec3f posFrom, posTo;
+  f32   yawFrom, yawTo;
+  f32   time, maxTime, speed;
+} Animation;
+
 #define POWER_PUNT   0
 #define POWER_MAGNET 1
 #define POWER_SPIN   2
@@ -88,6 +99,7 @@ typedef struct
 {
   Object obj;
   Ai ai;
+  Animation anim;
   u8 autopilot;
   u8 team;                  // 0 - red, 1 - blue
   u8 powerControls;         // 
@@ -107,6 +119,8 @@ typedef struct
 {
   Object obj;
   u8     red, blue;
+  u8     magnet;
+  f32    magnetTime;
 } Ball;
 
 typedef struct

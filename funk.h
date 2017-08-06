@@ -13,6 +13,7 @@ void Mesh_MakeBall(Mesh* mesh);
 
 void Game_Tick();
 
+u8  FindPlayerIndex(Player* player);
 
 bool Object_IsAlive(Object* obj);
 void Player_Tick(Player* player);
@@ -20,6 +21,14 @@ void Ball_Tick(Ball* ball);
 
 bool Can_Power(Player* player, u32 power);
 void Activate_Power(Player* player, u32 power);
+
+inline bool IsAnimating(Animation* anim)
+{
+  return anim->state != 0;
+}
+
+void Animate_Tick(Animation* anim, Vec3f* pos, f32* yaw);
+void AnimateMoveXZ(Animation* anim, Vec3f posFrom, Vec3f posTo, f32 yawFrom, f32 yawTo, f32 time, f32 speed);
 
 // Decode angle to radians
 inline f32 DecodeAngle(i16 angle)

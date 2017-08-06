@@ -1897,6 +1897,17 @@ bool Input_ControlReleased(u32 control)
   return false;
 }
 
+f32 $WrapMax(f32 x, f32 max)
+{
+  /* integer math: `(max + x % max) % max` */
+  return fmodf(max + fmodf(x, max), max);
+}
+
+f32 $WrapMinMax(f32 x, f32 min, f32 max)
+{
+  return min + $WrapMax(x - min, max - min);
+}
+
 void $Vec3_Transform(Vec3f* v, Rot3i* b)
 {
   if (b->pitch)
@@ -2313,6 +2324,32 @@ void $Mat44_LookAt(Mat44* m, Vec3f pos, Vec3f target)
   m->m[3][1] = pos.y;
   m->m[3][2] = pos.z;
   m->m[3][3] = 1.0f;
+}
+
+double wrapMax(double x, double max)
+{
+    /* integer math: `(max + x % max) % max` */
+    return fmod(max + fmod(x, max), max);
+}
+/* wrap x -> [min,max) */
+double wrapMinMax(double x, double min, double max)
+{
+    return min + wrapMax(x - min, max - min);
+}
+
+f32 $Rad_Lerp(f32 x, f32 y, f32 t)
+{
+  return x + t * $Rad_Wrap_NegHalfPi_PosHalfPi(y - x);
+}
+
+f32 $Rad_Wrap_0_Pi(f32 v)
+{
+  return $WrapMax(v, $PI);
+}
+
+f32 $Rad_Wrap_NegHalfPi_PosHalfPi(f32 v)
+{
+  return $WrapMinMax(v, -$PI*0.5f, $PI*0.5f);
 }
 
 void $$Frustrum_CreateProjection(Vec4f* f, f32 fovy, f32 aspect, f32 nearClip, f32 farClip)

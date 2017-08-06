@@ -1,11 +1,6 @@
 #include "funk.h"
 #include "float.h"
 
-bool Object_IsAlive(Object* obj)
-{
-  return obj->type != OT_NONE;
-}
-
 #define PLAYER_gravity 9.81f  // m/s^2
 #define PLAYER_mass  1200.0f  // kg
 #define PLAYER_inertiaScale  1.0f  // Multiply by mass for inertia
@@ -36,6 +31,22 @@ bool Object_IsAlive(Object* obj)
 #define PLAYER_axleWeightRatioRear PLAYER_cgToFrontAxle / PLAYER_wheelBase // % car weight on the rear axle
 
 
+bool Object_IsAlive(Object* obj)
+{
+  return obj->type != OT_NONE;
+}
+
+u8  FindPlayerIndex(Player* player)
+{
+  for(u32 ii=0;ii < MAX_PLAYERS;ii++)
+  {
+    if (player == &PLAYER[ii])
+      return ii;
+  }
+  
+  return 255;
+}
+
 inline f32 Player_GetThrottle(Player* player)
 {
   i8 v = player->acceleratorBrake;
@@ -62,7 +73,7 @@ inline f32 Player_GetHandBrake(Player* player)
   return 0.0f;
 }
 
-void Player_TickPhysics(Player* player)
+void Player_TickPhysics(Player* player, bool isAnimating)
 {
   //  Vec3f velocity, acceleration; //, lateralFrontForce, lateralRearForce, traction, drag, force;
 
@@ -149,14 +160,19 @@ void Player_TickPhysics(Player* player)
 
   player->obj.yaw = (i16) ($Rad2Deg(-player->heading));
 
-	//  finally we can update position
-	player->obj.position.FORWARD += player->obj.velocity.FORWARD * DELTA;
-	player->obj.position.RIGHT += player->obj.velocity.RIGHT * DELTA;
-
+  if (isAnimating == false)
+  {
+	  //  finally we can update position
+	  player->obj.position.FORWARD += player->obj.velocity.FORWARD * DELTA;
+	  player->obj.position.RIGHT += player->obj.velocity.RIGHT * DELTA;
+  }
 }
 
 void Player_TickBallCollision(Player* player, Ball* ball)
 {
+  if (ball->magnet != 255)
+    return;
+
   Vec3f localPoint = TransformWorldPointToLocalSpaceXZ(player->obj.position, player->obj.yaw, ball->obj.position);
 
   /*
@@ -293,6 +309,19 @@ void Player_AI_TickSpinState(Player* player, Ball* ball)
 
 void Player_AI_Resolve(Player* player, Ball* ball)
 {
+  f32 ballDistance = $Vec3_Length($Vec3_Sub(player->obj.position, ball->obj.position));
+
+  if (ballDistance <= 6)
+  {
+    // @TODO power here.
+    //  Dice rolls for powers.
+    //  Magnetic and spin are more difficult to roll for.
+
+    if (Can_Power(player, POWER_PUNT))
+    {
+      Activate_Power(player, POWER_PUNT);
+    }
+  }
 }
 
 void Player_TickAI(Player* player, Ball* ball)
@@ -365,7 +394,7 @@ void Power_Activate_Punt(Player* player, Ball* ball)
     return;
   }
   
-    player->powerCooldown[POWER_PUNT] = 1.0f;
+  player->powerCooldown[POWER_PUNT] = 1.0f;
 
   Vec3f tgt;
   tgt.x = 0.0f;
@@ -382,12 +411,38 @@ void Power_Activate_Punt(Player* player, Ball* ball)
   f32 force = 80.0f;
   ball->obj.velocity = $Vec3_Add(ball->obj.velocity, $Vec3_MulS(direction, force));
 
+  #if 0
+  AnimateMoveXZ(&player->anim,
+    player->obj.position,
+    $Vec3_Add(ballPos, $Vec3_MulS(direction, 10.0f)),
+    player->heading,
+    player->heading,
+    8.0f,
+    1.0f
+  );
+  #endif
+
 }
 
 void Power_Activate_Magnet(Player* player, Ball* ball)
 {
   player->powerCooldown[POWER_MAGNET] = 5.0f;
   printf("** Magnet\n");
+  
+  Vec3f ballPos = ball->obj.position;
+  f32 distance = $Vec3_Length($Vec3_Sub(player->obj.position, ballPos));
+  
+  if (distance > 6.0f)
+  {
+    player->powerAvailable |= POWER_BIT_MAGNET;
+    player->powerCooldown[POWER_MAGNET] = 0.0f;
+    return;
+  }
+  
+  player->powerCooldown[POWER_MAGNET] = 30.0f;
+
+  ball->magnet     = FindPlayerIndex(player);
+  ball->magnetTime = 15.0f;
 }
 
 void Power_Activate_Spin(Player* player, Ball* ball)
@@ -429,14 +484,26 @@ void Player_Tick(Player* player)
       }
     }
   }
+  bool isAnimating = IsAnimating(&player->anim);
   
-  if (player->autopilot)
+  if (isAnimating == false)
   {
-    Player_TickAI(player, &BALL);
+    if (player->autopilot)
+    {
+      Player_TickAI(player, &BALL);
+    }
+  
+    Player_TickBallCollision(player, &BALL);
+  }
+  else
+  {
+    Animate_Tick(&player->anim, &player->obj.position, &player->heading);
+    player->obj.yaw = (i16) player->heading;
   }
 
-  Player_TickBallCollision(player, &BALL);
-  Player_TickPhysics(player);
+  
+    Player_TickPhysics(player, isAnimating);
+  
 }
 
 #define BALL_MASS 1200
@@ -452,12 +519,14 @@ void Ball_Tick(Ball* ball)
     ball->obj.position.x = -BOUNDS_SIZE_HALF_F;
     ball->obj.velocity.x = -ball->obj.velocity.x;
     ball->obj.acceleration.x = -ball->obj.acceleration.x;
+    ball->magnet = 255;
   }
   else if (ball->obj.position.x > BOUNDS_SIZE_HALF_F)
   {
     ball->obj.position.x = BOUNDS_SIZE_HALF_F;
     ball->obj.velocity.x = -ball->obj.velocity.x;
     ball->obj.acceleration.x = -ball->obj.acceleration.x;
+    ball->magnet = 255;
   }
   
   if (inGoalArea == false && ball->obj.position.z < -BOUNDS_SIZE_HALF_F)
@@ -465,12 +534,14 @@ void Ball_Tick(Ball* ball)
     ball->obj.position.z = -BOUNDS_SIZE_HALF_F;
     ball->obj.velocity.z = -ball->obj.velocity.z;
     ball->obj.acceleration.z = -ball->obj.acceleration.z;
+    ball->magnet = 255;
   }
   else if (inGoalArea == false && ball->obj.position.z > BOUNDS_SIZE_HALF_F)
   {
     ball->obj.position.z = BOUNDS_SIZE_HALF_F;
     ball->obj.velocity.z = -ball->obj.velocity.z;
     ball->obj.acceleration.z = -ball->obj.acceleration.z;
+    ball->magnet = 255;
   }
 
   if (inGoalArea && ball->obj.position.z < -BOUNDS_SIZE_HALF_F)
@@ -480,6 +551,7 @@ void Ball_Tick(Ball* ball)
     ball->obj.position = $Vec3_Xyz(0,0,0);
     ball->obj.velocity = $Vec3_Xyz(0,0,0);
     ball->obj.acceleration = $Vec3_Xyz(0,0,0);
+    ball->magnet = 255;
   }
   else if (inGoalArea && ball->obj.position.z > +BOUNDS_SIZE_HALF_F)
   {
@@ -488,18 +560,48 @@ void Ball_Tick(Ball* ball)
     ball->obj.position = $Vec3_Xyz(0,0,0);
     ball->obj.velocity = $Vec3_Xyz(0,0,0);
     ball->obj.acceleration = $Vec3_Xyz(0,0,0);
+    ball->magnet = 255;
   }
 
-  ball->obj.velocity.FORWARD    += ball->obj.acceleration.FORWARD * DELTA;
-  ball->obj.velocity.RIGHT      += ball->obj.acceleration.RIGHT * DELTA;
+  if (ball->magnet == 255)
+  {
+    ball->obj.velocity.FORWARD    += ball->obj.acceleration.FORWARD * DELTA;
+    ball->obj.velocity.RIGHT      += ball->obj.acceleration.RIGHT * DELTA;
   
-  ball->obj.position.FORWARD    += ball->obj.velocity.FORWARD * DELTA;
-  ball->obj.position.RIGHT      += ball->obj.velocity.RIGHT * DELTA;
+    ball->obj.position.FORWARD    += ball->obj.velocity.FORWARD * DELTA;
+    ball->obj.position.y           = 0;
+    ball->obj.position.RIGHT      += ball->obj.velocity.RIGHT * DELTA;
   
-  ball->obj.velocity.FORWARD    *= 0.95f;
-  ball->obj.velocity.RIGHT      *= 0.95f;
+    ball->obj.velocity.FORWARD    *= 0.95f;
+    ball->obj.velocity.RIGHT      *= 0.95f;
   
 
-  ball->obj.acceleration.FORWARD = 0;
-  ball->obj.acceleration.RIGHT   = 0;
+    ball->obj.acceleration.FORWARD = 0;
+    ball->obj.acceleration.RIGHT   = 0;
+  }
+  else
+  {
+    Player* player = &PLAYER[ball->magnet];
+    
+    Vec3f fwd;
+    fwd.FORWARD = 3.5f;
+    fwd.RIGHT = 0;
+    fwd.UP = 0;
+
+    fwd = TransformLocalPointToWorldSpaceXZRad(player->obj.position, player->heading, fwd);
+
+    ball->obj.velocity.FORWARD    = 0;
+    ball->obj.velocity.RIGHT      = 0;
+    ball->obj.position.FORWARD    = fwd.FORWARD;
+    ball->obj.position.y          = 0;
+    ball->obj.position.RIGHT      = fwd.RIGHT;
+    ball->obj.yaw                 = (ball->obj.yaw + 3) % 360;
+
+    ball->magnetTime -= $.fixedDeltaTime;
+    if (ball->magnetTime <= 0.0f)
+    {
+      ball->magnet = 255;
+    }
+
+  }
 }

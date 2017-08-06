@@ -18,6 +18,7 @@ void $Setup()
 
   DELTA = 1.0f / 60.0f;
 
+  $.title = "Retro League ///";
   $.displayScale = 3;
 
   Mesh_MakePlayer(&MESH_PLAYER);
@@ -67,6 +68,7 @@ void $Start()
   memset(&BALL, 0, sizeof(BALL));
   BALL.obj.type = OT_BALL;
   BALL.obj.position.FORWARD = 30;
+  BALL.magnet = 255;
 
   $.Net.Connect("localhost", 5000);
   char* n = "HELLO";
@@ -260,7 +262,10 @@ void $Draw()
     $.Scene.DrawMesh(&SCENE, &MESH_PLAYER, player->obj.position, rot);
   }
 
-  Rot3i ballRot = { 0 };
+  Rot3i ballRot;
+  ballRot.pitch = 0;
+  ballRot.yaw   = BALL.obj.yaw;
+  ballRot.roll  = 0;
   $.Scene.DrawMesh(&SCENE, &MESH_BALL, BALL.obj.position, ballRot);
   
   /*
