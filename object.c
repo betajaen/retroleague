@@ -164,12 +164,18 @@ void Player_TickBallCollision(Player* player, Ball* ball)
 
   if (IntersectPointXZRadius($Vec3_Xyz(0,0,0), MESH_PLAYER.halfSize, MESH_PLAYER.min, MESH_PLAYER.max, localPoint, 2.56f, &result))
   {
-    Vec3f worldNormal = TransformWorldPointToLocalSpaceXZ($Vec3_Xyz(0,0,0), player->obj.yaw, result.normal);
     
-    // printf("** HIT %.1f %.1f => %.1f %.1f\n", result.normal.x, result.normal.z, worldNormal.x, worldNormal.z);
+    #if 0
+    Vec3f worldNormal = TransformWorldPointToLocalSpaceXZ($Vec3_Xyz(0,0,0), player->obj.yaw, result.normal);
 
     BALL.obj.acceleration.x += worldNormal.x * 3000.0f;
     BALL.obj.acceleration.z += worldNormal.z * 3000.0f;
+    #else
+    Vec3f normalisedVelocity = $Vec3_Normalise(player->obj.velocity); // $Vec3_Mul(player->obj.velocity, worldNormal));
+    BALL.obj.acceleration.x += normalisedVelocity.x * 4000.0f;
+    BALL.obj.acceleration.z += normalisedVelocity.z * 4000.0f;
+    #endif
+
   }
 
 
