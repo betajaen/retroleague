@@ -283,9 +283,13 @@ inline Vec3f $Vec3_DivS(Vec3f a, f32 s)  { return $Vec3_Xyz(a.x / s, a.y / s, a.
 Vec3f $Vec3_Normalise(Vec3f v);
 Vec4f $Vec4_Normalise3(Vec4f v);
 inline f32   $Vec3_Dot(Vec3f a, Vec3f b)  { return a.x * b.x + a.y * b.y + a.z * b.z;          }
+inline f32   $Vec3_DotXZ(Vec3f a, Vec3f b)  { return a.x * b.x + a.z * b.z;          }
 inline f32   $Vec3_Dot4(Vec4f a, Vec4f b)  { return a.x * b.x + a.y * b.y + a.z * b.z;          }
 
 Vec3f $Vec3_Cross(Vec3f a, Vec3f b);
+inline f32 $Vec3_CrossXZ(Vec3f a,Vec3f b) { 
+    return (a.x*b.z) - (a.z*b.x);
+    }
 f32   $Vec3_Length(Vec3f v);
 f32   $Vec3_Length2(Vec3f v);
 f32   $Vec4_Length3(Vec4f v);

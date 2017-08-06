@@ -228,10 +228,10 @@ void Player_AI_TickMoveTowardsBall(Player* player, Ball* ball)
 
   PID_DEBUG("Angle=%f", $Rad2Deg(angle));
 
-  f32 error = PidError($Deg2Rad(0.0f), angle);
+  f32 error = -PidError($Deg2Rad(0.0f), angle);
   f32 newSteering = UpdatePid(steering, error, $.fixedDeltaTime);
-  PID_DEBUG("Err=%f NewAdd=%f, Steering=%f", $Rad2Deg(error), $Rad2Deg(newSteering), $Rad2Deg(player->steering));
   player->steering = newSteering;
+  PID_DEBUG("Err=%f NewAdd=%f, Steering=%f", $Rad2Deg(error), $Rad2Deg(newSteering), $Rad2Deg(player->steering));
 }
 
 void Player_AI_StartShootState(Player* player, Ball* ball)
@@ -293,17 +293,38 @@ void Player_Tick(Player* player)
   }
   else if (player == ME)
   {
-    Vec3f s =  player->obj.position;
-    Vec3f t = BALL.obj.position;
+//      Vec3f car = player->obj.position;
+      Vec3f ball = BALL.obj.position;
 
-    t = TransformWorldPointToLocalSpaceXZ(s, player->obj.yaw, t);
+      Vec3f fwd;
+      fwd.z = 1.0;
+      fwd.x = 0.0;
+      fwd.y = 0.0;
+      
+      Mat44 rotMatrix;
+      $Mat44_RotMatrixY(&rotMatrix, $Rad2Deg(player->heading));
 
-    f32 angle = atan2f(t.z,t.x) + $Deg2Rad(-90.0f); // - atan2f(s.z,s.x);
+      Vec4f fwd4;
+      fwd4.x = fwd.x;
+      fwd4.y = fwd.y;
+      fwd4.z = fwd.z;
+      fwd4.w = 1.0f;
 
-    //$Vec3_Dot(s, t);
-    // atan2f(t.z, t.x) + $Deg2Rad(90.0f);
+      Vec4f changedFwd;
+      $Mat44_MultiplyVec4(&changedFwd, &rotMatrix, &fwd4);
+      
+      fwd.x = changedFwd.x;
+      fwd.z = changedFwd.z;
 
-    printf("[-]Angle=%f\n", $Rad2Deg(angle));
+      Vec3f c = $Vec3_Cross(fwd, ball);
+
+      f32 angle = c.y;
+
+      if (angle > 0)
+        printf("[-] LEFT=%.1f HED = %.1f  FWD %.1f %.1f\n", angle, $Rad2Deg(player->heading), fwd.x, fwd.z);
+      else
+        printf("[-] RIGH=%.1f HED = %.1f  FWD %.1f %.1f\n", angle, $Rad2Deg(player->heading), fwd.x, fwd.z);
+
     }
   
     Player_TickBallCollision(player, &BALL);

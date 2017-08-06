@@ -43,7 +43,8 @@
 #define CONTROL_UP         7
 #define CONTROL_AUTOPILOT       8
 #define CONTROL_HANDBRAKE  9
-#define SOUND_TEST         10
+#define CONTROL_FLIP_180   10
+#define SOUND_TEST         11
 
 #define OT_NONE   0
 #define OT_PLAYER 1

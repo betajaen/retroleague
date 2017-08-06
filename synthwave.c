@@ -2267,9 +2267,9 @@ Vec4f $Vec4_Normalise3(Vec4f v)
 Vec3f $Vec3_Cross(Vec3f a, Vec3f b)
 {
   Vec3f r;
-  r.x = (a.y * b.z) - (a.z * b.y);
-  r.y = (a.z * b.x) - (a.x * b.z);
-  r.z = (a.x * b.y) - (a.y * b.x);
+  r.x = a.y * b.z - b.y * a.z;
+	r.y = a.z * b.x - b.z * a.x;
+	r.z = a.x * b.y - b.x * a.y;
   return r;
 }
 

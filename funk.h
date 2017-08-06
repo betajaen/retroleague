@@ -53,6 +53,8 @@ Vec3f TransformWorldPointToLocalSpaceXZ(Vec3f selfPosition, i32 selfRotation, Ve
 
 Vec3f TransformLocalPointToWorldSpaceXZ(Vec3f selfPosition, i32 selfRotation, Vec3f otherPosition);
 
+Vec3f TransformLocalPointToWorldSpaceXZRad(Vec3f selfPosition, f32 heading, Vec3f otherPosition);
+
 void MakePid(Pid* pid, f32 p, f32 i, f32 d);
 void MakePidDefaults1(Pid* pid);
 f32 UpdatePid(Pid* pid, f32 error, f32 time);

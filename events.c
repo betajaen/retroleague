@@ -30,7 +30,8 @@ void $Setup()
   $.Input.BindControl(CONTROL_CAMERA_LEFT,  $KEY_Q);
   $.Input.BindControl(CONTROL_CAMERA_RIGHT, $KEY_E);
   $.Input.BindControl(CONTROL_HANDBRAKE,    $KEY_SPACE);
-  $.Input.BindControl(CONTROL_AUTOPILOT,         $KEY_TAB);
+  $.Input.BindControl(CONTROL_AUTOPILOT,    $KEY_TAB);
+  $.Input.BindControl(CONTROL_FLIP_180,     $KEY_X);
   $.Input.BindControl(SOUND_TEST,           $KEY_C);
   
 }
@@ -163,6 +164,11 @@ void $Draw()
     ME->autopilot = !ME->autopilot;
   }
   
+  if ($.Input.ControlReleased(CONTROL_FLIP_180))
+  {
+    ME->heading -= $Deg2Rad(180.0f);
+  }
+
   rotationTimer += (1.0f / 60.0f) * 10.0f;
   rotationTimer = ConstrainAngle(rotationTimer);
 
