@@ -191,7 +191,9 @@ void Player_TickBallCollision(Player* player, Ball* ball)
 
 #define AI_STATE_NONE              0
 #define AI_STATE_MOVE_TOWARDS_BALL 1
-#define AI_STATE_SHOOT             2
+#define AI_STATE_POWER_MAGNET      2
+#define AI_STATE_POWER_PUNT        3
+#define AI_STATE_POWER_SPIN        4
 
 #define PID_THROTTLE_BRAKE    a
 #define PID_STEERING b
@@ -202,8 +204,49 @@ void Player_TickBallCollision(Player* player, Ball* ball)
 #define PID_DEBUG(T, ...)
 #endif
 
+void Player_AI_UpdateSteering(Player* player, Vec3f target)
+{
+  Pid* steering = &player->ai.PID_STEERING;
+
+  Vec3f playerPos     = player->obj.position;
+  f32   playerHeading = player->heading;
+
+  Vec3f targetLocal   = TransformWorldPointToLocalSpaceXZRad(playerPos, playerHeading, target);
+
+  Vec3f targetDirection = $Vec3_Normalise(targetLocal );
+  Vec3f forward         = $Vec3_Xyz(0,0,1);
+
+  f32   dot           = $Vec3_DotXZ(targetDirection, forward);
+
+  f32   angle          = acosf(dot);
+
+  f32   atanf2_angle   = atan2f((forward.z - targetDirection.z), (forward.x - targetDirection.x));
+
+  f32   sign = $SignF(($Rad2Deg(atanf2_angle) - 90.0f));
+
+  f32   signedAngle = angle * sign * -1.0f;
+
+  f32 steeringError = PidError(0.0f, signedAngle);
+  f32 newSteering   = UpdatePid(steering, steeringError, $.fixedDeltaTime);
+  player->steering += newSteering;
+}
+
+void Player_AI_UpdateThrottle(Player* player, f32 targetSpeed)
+{
+
+  Pid* throttle = &player->ai.PID_THROTTLE_BRAKE;
+  f32 speed = player->absVelocity;
+
+  f32 speedError  = PidError(targetSpeed, speed);
+  f32 newThrottle = UpdatePid(throttle, speedError, $.fixedDeltaTime);
+  i8 throttleAbs = $Clamp((i8) newThrottle, 0, 100);
+  player->acceleratorBrake = throttleAbs;
+}
+
 void Player_AI_StartMoveTowardsBall(Player* player, Ball* ball)
 {
+  player->ai.state = AI_STATE_MOVE_TOWARDS_BALL;
+
   Pid* throttle = &player->ai.PID_THROTTLE_BRAKE;
   Pid* steering = &player->ai.PID_STEERING;
 
@@ -217,52 +260,38 @@ void Player_AI_StartMoveTowardsBall(Player* player, Ball* ball)
 
 void Player_AI_TickMoveTowardsBall(Player* player, Ball* ball)
 {
-  Pid* throttle = &player->ai.PID_THROTTLE_BRAKE;
-  Pid* steering = &player->ai.PID_STEERING;
-  
-  Vec3f playerPos     = player->obj.position;
-  f32   playerHeading = player->heading;
-
-  Vec3f ballPosWorld  = BALL.obj.position;
-  Vec3f ballPosLocal  = TransformWorldPointToLocalSpaceXZRad(playerPos, playerHeading, ballPosWorld);
-
-  Vec3f ballDirection = $Vec3_Normalise(ballPosLocal);
-  Vec3f forward       = $Vec3_Xyz(0,0,1);
-
-  f32   dot           = $Vec3_DotXZ(ballDirection, forward);
-
-  f32   angle          = acosf(dot);
-
-  f32   atanf2_angle   = atan2f((forward.z - ballDirection.z), (forward.x - ballDirection.x));
-
-  f32   sign = $SignF(($Rad2Deg(atanf2_angle) - 90.0f));
-
-  f32   signedAngle = angle * sign * -1.0f;
-
-  f32 steeringError = PidError(0.0f, signedAngle);
-  f32 newSteering = UpdatePid(steering, steeringError, $.fixedDeltaTime);
-  player->steering += newSteering;
-//  PID_DEBUG("Dot-%.2f, Error= %.2f, Steering=%.2f, Angle=%.2f Signed=%.2f  ATan2=%.2f", dot, error, newSteering, $Rad2Deg(angle), $Rad2Deg(signedAngle), $Rad2Deg(atanf2_angle) - 90.0f);
-  
-  f32 speed = player->absVelocity;
-  f32 targetSpeed = 25.0f;
-
-  f32 speedError  = PidError(targetSpeed, speed);
-  f32 newThrottle = UpdatePid(throttle, speedError, $.fixedDeltaTime);
-  i8 throttleAbs = $Clamp((i8) newThrottle, 0, 100);
-  player->acceleratorBrake = throttleAbs;
-
-  PID_DEBUG("Speed = %.1f/%.1f, Err=%.1f, Throttle=%i", speed,targetSpeed, speedError, player->acceleratorBrake);
-
-  //f32 speedError = PidError()
-
+  Player_AI_UpdateSteering(player, BALL.obj.position);
+  Player_AI_UpdateThrottle(player, 25.0f);
 }
 
-void Player_AI_StartShootState(Player* player, Ball* ball)
+void Player_AI_StartPuntState(Player* player, Ball* ball)
+{
+  player->ai.state = AI_STATE_POWER_PUNT;
+}
+
+void Player_AI_TickPuntState(Player* player, Ball* ball)
 {
 }
 
-void Player_AI_TickShootState(Player* player, Ball* ball)
+void Player_AI_StartMagnetState(Player* player, Ball* ball)
+{
+  player->ai.state = AI_STATE_POWER_MAGNET;
+}
+
+void Player_AI_TickMagnetState(Player* player, Ball* ball)
+{
+}
+
+void Player_AI_StartSpinState(Player* player, Ball* ball)
+{
+  player->ai.state = AI_STATE_POWER_SPIN;
+}
+
+void Player_AI_TickSpinState(Player* player, Ball* ball)
+{
+}
+
+void Player_AI_Resolve(Player* player, Ball* ball)
 {
 }
 
@@ -275,20 +304,7 @@ void Player_TickAI(Player* player, Ball* ball)
     default:
     case AI_STATE_NONE:
     {
-      Vec3f direction = $Vec3_Sub(ball->obj.position, player->obj.position);
-      f32 distance  = $Vec3_Length(direction);
-      direction = $Vec3_Normalise(direction);
-
-      if (distance < 3.0f)
-      {
-        player->ai.state = AI_STATE_SHOOT;
-        Player_AI_StartShootState(player, ball);
-      }
-      else
-      {
-        player->ai.state = AI_STATE_MOVE_TOWARDS_BALL;
-        Player_AI_StartMoveTowardsBall(player, ball);
-      }
+      Player_AI_StartMoveTowardsBall(player, ball);
     }
     break;
     case AI_STATE_MOVE_TOWARDS_BALL:
@@ -296,12 +312,24 @@ void Player_TickAI(Player* player, Ball* ball)
       Player_AI_TickMoveTowardsBall(player, ball);
     }
     break;
-    case AI_STATE_SHOOT:
+    case AI_STATE_POWER_PUNT:
     {
-    
+      Player_AI_TickPuntState(player, &BALL);
+    }
+    break;
+    case AI_STATE_POWER_MAGNET:
+    {
+      Player_AI_TickMagnetState(player, &BALL);
+    }
+    break;
+    case AI_STATE_POWER_SPIN:
+    {
+      Player_AI_TickSpinState(player, &BALL);
     }
     break;
   }
+
+  Player_AI_Resolve(player, &BALL);
 
   #if (1)
     printf("\n");
