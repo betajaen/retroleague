@@ -20,3 +20,35 @@ Vec3f RotatePointXZ(Vec3f p, f32 yaw)
   return p1;
 }
 
+void MakePid(Pid* pid, f32 p, f32 i, f32 d)
+{
+  pid->p = p;
+  pid->i = i;
+  pid->d = d;
+  pid->max = FLT_MAX;
+  pid->min = FLT_MIN;
+  pid->prevError = 0.0f;
+  pid->intAccum = 0.0f;
+}
+
+void MakePidDefaults1(Pid* pid)
+{
+  MakePid(pid, 1.0f, 0.01f, 0.001f);
+}
+
+f32 UpdatePid(Pid* pid, f32 error, f32 time)
+{
+  pid->intAccum += error * time;
+  float action = (pid->p * error) + (pid->i * pid->intAccum) + (pid->d * (error - pid->prevError) / time);
+  float clamped = $Clamp(action, pid->min, pid->max);
+  
+  if (!ApproxEqual(clamped, action))
+  {
+    pid->intAccum -= error * time;
+  }
+
+  pid->prevError = error;
+  return action;
+
+}
+

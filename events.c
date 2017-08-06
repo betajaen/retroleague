@@ -1,6 +1,15 @@
 #include "funk.h"
 #include <string.h>
 
+#define CAMERA_THETA_DEFAULT 90.0f
+
+f32 CAMERA_THETA;
+f32 CAMERA_THETA_TIME;
+f32 CAMERA_THETA_PID_DELTA;
+
+bool CAMERA_THETA_PID_ENABLED;
+Pid  CAMERA_THETA_PID;
+
 void $Setup()
 {
 #if IS_STREAMING
@@ -19,8 +28,8 @@ void $Setup()
   $.Input.BindControl(CONTROL_BACKWARD,   $KEY_S);
   $.Input.BindControl(CONTROL_LEFT,       $KEY_A);
   $.Input.BindControl(CONTROL_RIGHT,      $KEY_D);
-  $.Input.BindControl(CONTROL_TURN_LEFT,  $KEY_Q);
-  $.Input.BindControl(CONTROL_TURN_RIGHT, $KEY_E);
+  $.Input.BindControl(CONTROL_CAMERA_LEFT,  $KEY_Q);
+  $.Input.BindControl(CONTROL_CAMERA_RIGHT, $KEY_E);
   $.Input.BindControl(CONTROL_UP,         $KEY_SPACE);
   $.Input.BindControl(CONTROL_DOWN,       $KEY_LCTRL);
   $.Input.BindControl(SOUND_TEST,         $KEY_C);
@@ -53,6 +62,11 @@ void $Start()
   $.Net.SendMessage(5, n);
 
   $.Scene.SetPovLookAtXyz(&SCENE, 10, 10, 10, 0,0,0);
+
+  CAMERA_THETA      = CAMERA_THETA_DEFAULT;
+  CAMERA_THETA_TIME = 0.0f;
+  CAMERA_THETA_PID_ENABLED = false;
+  CAMERA_THETA_PID_DELTA = 0.0f;
 }
 
 void $Update()
@@ -75,6 +89,17 @@ void $Update()
 
   if (ME != NULL)
   {
+    if (CAMERA_THETA_TIME >= 0.0f)
+    {
+      CAMERA_THETA_TIME -= $.fixedDeltaTime;
+      if (CAMERA_THETA_TIME <= 0.0f)
+      {
+        CAMERA_THETA_PID_ENABLED = true;
+        CAMERA_THETA_PID_DELTA = 0.0f;
+        MakePidDefaults1(&CAMERA_THETA_PID);
+      }
+    }
+
     if ($.Input.ControlDown(CONTROL_LEFT))
     {
       ME->steering = -10;
@@ -94,6 +119,35 @@ void $Update()
       ME->acceleratorBrake = -100;
     else
       ME->acceleratorBrake = 0;
+
+    if ($.Input.ControlDown(CONTROL_CAMERA_LEFT))
+    {
+      CAMERA_THETA -= 70.0f * $.fixedDeltaTime;
+      CAMERA_THETA_TIME = 2.0f;
+      CAMERA_THETA_PID_ENABLED = false;
+    }
+    else if ($.Input.ControlDown(CONTROL_CAMERA_RIGHT))
+    {
+      CAMERA_THETA += 70.0f * $.fixedDeltaTime;
+      CAMERA_THETA_TIME = 2.0f;
+      CAMERA_THETA_PID_ENABLED = false;
+    }
+    CAMERA_THETA = ConstrainAngle(CAMERA_THETA);
+  }
+
+  if (CAMERA_THETA_PID_ENABLED)
+  {
+    f32 error = CAMERA_THETA_DEFAULT - CAMERA_THETA;
+    //f32 before = CAMERA_THETA;
+    CAMERA_THETA_PID_DELTA = UpdatePid(&CAMERA_THETA_PID, error, $.fixedDeltaTime);
+    CAMERA_THETA += CAMERA_THETA_PID_DELTA * $.fixedDeltaTime * 4.0f;
+    //printf("BEFORE=%.1f, AFTER=%.1f, ERROR=%.1f, DELTA=%.1f\n", before, CAMERA_THETA, error, CAMERA_THETA_PID_DELTA);
+
+    if (AbsDifference(CAMERA_THETA, CAMERA_THETA_DEFAULT) < 1.0f)
+    {
+      CAMERA_THETA = CAMERA_THETA_DEFAULT;
+      CAMERA_THETA_PID_ENABLED = false;
+    }
   }
 
   Game_Tick();
@@ -139,8 +193,13 @@ void $Draw()
 
   if (ME != NULL)
   {
-    Vec3f cameraTarget = RotatePointXZ($Vec3_Xyz(0,0,6), ME->obj.yaw);
-    Vec3f cameraPos    = RotatePointXZ($Vec3_Xyz(0,4,-6), ME->obj.yaw);
+    const f32 cameraDistance = 6.0f;
+    f32 c = cosf($Deg2Rad(CAMERA_THETA)) * 6.0f;
+    f32 s = sinf($Deg2Rad(CAMERA_THETA)) * 6.0f;
+
+    Vec3f cameraTarget = RotatePointXZ($Vec3_Xyz(c,0,s), ME->obj.yaw);
+    
+    Vec3f cameraPos    = RotatePointXZ($Vec3_Xyz(-c,4,-s), ME->obj.yaw);
 
     cameraPos.x += ME->obj.position.x;
     cameraPos.y += ME->obj.position.y;

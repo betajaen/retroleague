@@ -35,6 +35,16 @@ inline f32 ApproxZero(f32 v)
   return !(fabsf(v) > FLT_EPSILON);
 }
 
+inline bool ApproxEqual(f32 a, f32 b)
+{
+  return !fabsf(b - a) <= FLT_EPSILON;
+}
+
+inline f32 AbsDifference(f32 a, f32 b)
+{
+  return fabsf(b - a);
+}
+
 bool IntersectPointXZ(Vec3f center, Vec3f halfSize, Vec3f point, IntersectPointResult* outResult);
 
 bool IntersectPointXZRadius(Vec3f center, Vec3f halfSize, Vec3f min, Vec3f max, Vec3f point, f32 radius, IntersectPointResult* outResult);
@@ -42,6 +52,10 @@ bool IntersectPointXZRadius(Vec3f center, Vec3f halfSize, Vec3f min, Vec3f max, 
 Vec3f TransformWorldPointToLocalSpaceXZ(Vec3f selfPosition, i32 selfRotation, Vec3f otherPosition);
 
 Vec3f TransformLocalPointToWorldSpaceXZ(Vec3f selfPosition, i32 selfRotation, Vec3f otherPosition);
+
+void MakePid(Pid* pid, f32 p, f32 i, f32 d);
+void MakePidDefaults1(Pid* pid);
+f32 UpdatePid(Pid* pid, f32 error, f32 time);
 
 #endif
 

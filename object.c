@@ -6,7 +6,6 @@ bool Object_IsAlive(Object* obj)
   return obj->type != OT_NONE;
 }
 
-
 #define PLAYER_gravity 9.81f  // m/s^2
 #define PLAYER_mass  1200.0f  // kg
 #define PLAYER_inertiaScale  1.0f  // Multiply by mass for inertia

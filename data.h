@@ -38,8 +38,8 @@
 #define CONTROL_BACKWARD   2
 #define CONTROL_LEFT       3
 #define CONTROL_RIGHT      4
-#define CONTROL_TURN_LEFT  5
-#define CONTROL_TURN_RIGHT 6
+#define CONTROL_CAMERA_LEFT  5
+#define CONTROL_CAMERA_RIGHT 6
 #define CONTROL_UP         7
 #define CONTROL_DOWN       8
 #define SOUND_TEST         9
@@ -87,6 +87,11 @@ typedef struct
   Vec3f delta, normal, pos;
 } IntersectPointResult;
 
+typedef struct
+{
+ f32 prevError, intAccum, p, i, d, max, min;
+} Pid;
+
 extern f32     DELTA;
 extern Surface SURFACE;
 extern Scene   SCENE;
@@ -100,6 +105,8 @@ extern Mesh    MESH_PLAYER;
 extern Mesh    MESH_BALL;
 extern Vec3f   CAMERA_POSITION;
 extern Vec3f   CAMERA_ROTATION;
+extern f32     CAMERA_THETA;
+extern f32     CAMERA_THETA_TIME;
 
 #endif
 
