@@ -989,10 +989,10 @@ inline void $$Vec4_XForm(RVec* dst, Vec4f* m)
 }
 
 #define $$Fwd_FragmentShader(NAME)\
-bool $$Fragment_Shader_##NAME($$FrameBuffer* fb,  Vec4f* v0, Vec4f* v1, Vec4f* v2, u8 c)
+bool $$Fragment_Shader_##NAME($$FrameBuffer* fb,  Vec4f* v0, Vec4f* v1, Vec4f* v2, u8 c, Vec4f* normal, Vec4f* lightDir)
 
 #define $$Make_FragmentShader(NAME, ...)\
-bool $$Fragment_Shader_##NAME($$FrameBuffer* fb,  Vec4f* v0, Vec4f* v1, Vec4f* v2, u8 c) \
+bool $$Fragment_Shader_##NAME($$FrameBuffer* fb,  Vec4f* v0, Vec4f* v1, Vec4f* v2, u8 c, Vec4f* normal, Vec4f* lightDir) \
 {\
   RVec r[3]; $$Vec4_XForm(&r[0], v0); $$Vec4_XForm(&r[1], v1); $$Vec4_XForm(&r[2], v2); \
   i32 A0 = r[1].y - r[2].y; /* 0 sized triangle rejection*/ \
@@ -1013,6 +1013,7 @@ bool $$Fragment_Shader_##NAME($$FrameBuffer* fb,  Vec4f* v0, Vec4f* v1, Vec4f* v
   r[2].z = (r[2].z - r[0].z) * oneOverTriArea;\
   f32 zx = A1 * r[1].z + A2 * r[2].z;\
   Vec2 p = { .x = minX, .y = minY };\
+  f32 diff = $Clamp(0.1f + $Vec3_Dot4(*normal, *lightDir), 0.0f, 1.0f);\
   i32 w0Row = (A0 * p.x) + (B0 * p.y) + C0,\
       w1Row = (A1 * p.x) + (B1 * p.y) + C1,\
       w2Row = (A2 * p.x) + (B2 * p.y) + C2;\
@@ -1025,6 +1026,7 @@ bool $$Fragment_Shader_##NAME($$FrameBuffer* fb,  Vec4f* v0, Vec4f* v1, Vec4f* v
           if (depth < prevDepth) {\
             __VA_ARGS__;\
             $$FrameBuffer_StoreDepth(fb, p.x, p.y, depth);\
+            $$FrameBuffer_StoreBrightness(fb, p.x, p.y, diff);\
           }\
       }\
       w0 += A0; w1 += A1; w2 += A2; depth += zx; }\
@@ -1118,14 +1120,18 @@ bool $$Fragment_Shader_InternalMetric($$FrameBuffer* fb,  Vec4f* v0, Vec4f* v1, 
   return true;
 }
 
-typedef bool (*$$FragmentShader)($$FrameBuffer* fb,  Vec4f* v0, Vec4f* v1, Vec4f* v2, u8 c);
+typedef bool (*$$FragmentShader)($$FrameBuffer* fb,  Vec4f* v0, Vec4f* v1, Vec4f* v2, u8 c, Vec4f* normal, Vec4f* lightDir);
 
 $$Fwd_FragmentShader(Standard);
 $$Fwd_FragmentShader(Shadow);
+$$Fwd_FragmentShader(Red);
+$$Fwd_FragmentShader(Blue);
 
-static $$FragmentShader $$FRAGMENT_SHADERS[2] = {
+static $$FragmentShader $$FRAGMENT_SHADERS[4] = {
   $$Fragment_Shader_Standard,
   $$Fragment_Shader_Shadow,
+  $$Fragment_Shader_Red,
+  $$Fragment_Shader_Blue,
 };
 
 
@@ -1178,8 +1184,24 @@ void $$Scene_DrawModel($$Scene* scene, $$FrameBuffer* fb, Mat44* vps, Mesh* mesh
     
     if(render && (v[0].w > 0.0f && v[1].w > 0.0f && v[2].w > 0.0f))
     {
-    #if 0
-      if ($$FRAGMENT_SHADERS[shader](fb, &v[0], &v[1], &v[2], triangle->colour))
+    #if 1
+      Vec3f nu;
+      nu.x = wv[1].x - wv[0].x;
+      nu.y = wv[1].y - wv[0].y;
+      nu.z = wv[1].z - wv[0].z;
+
+      Vec3f nv;
+      nv.x = wv[2].x - wv[1].x;
+      nv.y = wv[2].y - wv[1].y;
+      nv.z = wv[2].z - wv[1].z;
+
+      Vec4f normal;
+      normal.x = nu.y * nv.z - nu.z * nv.y;
+      normal.y = nu.z * nv.x - nu.x * nv.z;
+      normal.z = nu.x * nv.y - nu.y * nv.x;
+      normal.w = 1.0f;
+      normal = $Vec4_Normalise3(normal);
+      if ($$FRAGMENT_SHADERS[shader](fb, &v[0], &v[1], &v[2], triangle->colour, &normal, lightDir))
       {
         $.Stats.nbTriangles++;
       }
@@ -2706,9 +2728,6 @@ i32 main(i32 argc, char** argv)
   $$SetupApi();
   $$.palette = $PermaNew(Palette);
   $.Palette.AppendRgb($$.palette, 0xFF, 0x00, 0xFF);
-
-  
-  $.Palette.AppendRgb($$.palette, 0xFF, 0x00, 0xFF);
   $.Palette.AppendU32($$.palette, 0xff17111D); // very_dark_violet
   $.Palette.AppendU32($$.palette, 0xff4e4a4e); // shadowy_lavender
   $.Palette.AppendU32($$.palette, 0xff716E61); // flint
@@ -2813,4 +2832,12 @@ $$Make_FragmentShader(Shadow, {
   {
     $$FRAGMENT_SET_COLOUR(2);
   }
+});
+
+$$Make_FragmentShader(Red, {
+  $$FRAGMENT_SET_COLOUR(8);
+});
+
+$$Make_FragmentShader(Blue, {
+  $$FRAGMENT_SET_COLOUR(14);
 });

@@ -82,10 +82,10 @@ static void Draw_Scene()
     Activate_Power(ME, POWER_SPIN);
   }
 
-  $.Scene.DrawSkybox(&SCENE, DB16_CADET_BLUE, DB16_LEAF);
+  $.Scene.DrawSkybox(&SCENE, DB16_VERY_DARK_VIOLET, DB16_SHADOWY_LAVENDER);
 
-  const u32 dotDistance = 4;
-  u32 nbDots = BOUNDS_SIZE_I / 4;
+  const u32 dotDistance = 8;
+  u32 nbDots = BOUNDS_SIZE_I / 8;
 
   for(u32 ii=0;ii < nbDots;ii++)
   {
@@ -93,7 +93,7 @@ static void Draw_Scene()
     {
       f32 x = -(BOUNDS_SIZE_F * 0.5f) + (ii * dotDistance);
       f32 z = -(BOUNDS_SIZE_F * 0.5f) + (jj * dotDistance);
-      $.Scene.DrawGroundDot(&SCENE, DB16_PEPPERMINT, x, z);
+      $.Scene.DrawGroundDot(&SCENE, DB16_FLINT, x, z);
     }
   }
 
@@ -146,7 +146,7 @@ static void Draw_Scene()
     rot.pitch = 0;
     rot.yaw   = player->obj.yaw;
     rot.roll  = 0;
-    $.Scene.DrawMesh(&SCENE, &MESH_PLAYER, player->obj.position, rot);
+    $.Scene.DrawCustomShaderMesh(&SCENE, &MESH_PLAYER, player->team == 0 ? 2 : 3, player->obj.position, rot);
   }
 
   Rot3i ballRot;
@@ -287,7 +287,6 @@ void Update_Scene()
 
 void Start_SinglePlayer()
 {
-  // Absolutely temporary.
   for(u32 i=0;i < MAX_PLAYERS;i++)
   {
     PLAYER[i].obj.type = OT_PLAYER;
@@ -297,8 +296,11 @@ void Start_SinglePlayer()
 
   ME = &PLAYER[0];
   ME->autopilot = false;
-  ME->team = 1;
-
+  
+  PLAYER[1].team = 0;
+  PLAYER[1].team = 1;
+  PLAYER[2].team = 0;
+  PLAYER[3].team = 1;
   
   CAMERA_THETA      = CAMERA_THETA_DEFAULT;
   CAMERA_THETA_TIME = 0.0f;
