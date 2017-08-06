@@ -3,10 +3,9 @@
 
 #define CAMERA_THETA_DEFAULT 90.0f
 
-f32 CAMERA_THETA;
-f32 CAMERA_THETA_TIME;
-f32 CAMERA_THETA_PID_DELTA;
-
+f32  CAMERA_THETA;
+f32  CAMERA_THETA_TIME;
+f32  CAMERA_THETA_PID_DELTA;
 bool CAMERA_THETA_PID_ENABLED;
 Pid  CAMERA_THETA_PID;
 
@@ -24,15 +23,15 @@ void $Setup()
   Mesh_MakePlayer(&MESH_PLAYER);
   Mesh_MakeBall(&MESH_BALL);
 
-  $.Input.BindControl(CONTROL_FORWARD,    $KEY_W);
-  $.Input.BindControl(CONTROL_BACKWARD,   $KEY_S);
-  $.Input.BindControl(CONTROL_LEFT,       $KEY_A);
-  $.Input.BindControl(CONTROL_RIGHT,      $KEY_D);
+  $.Input.BindControl(CONTROL_FORWARD,      $KEY_W);
+  $.Input.BindControl(CONTROL_BACKWARD,     $KEY_S);
+  $.Input.BindControl(CONTROL_LEFT,         $KEY_A);
+  $.Input.BindControl(CONTROL_RIGHT,        $KEY_D);
   $.Input.BindControl(CONTROL_CAMERA_LEFT,  $KEY_Q);
   $.Input.BindControl(CONTROL_CAMERA_RIGHT, $KEY_E);
-  $.Input.BindControl(CONTROL_UP,         $KEY_SPACE);
-  $.Input.BindControl(CONTROL_DOWN,       $KEY_LCTRL);
-  $.Input.BindControl(SOUND_TEST,         $KEY_C);
+  $.Input.BindControl(CONTROL_HANDBRAKE,    $KEY_SPACE);
+  $.Input.BindControl(CONTROL_AUTOPILOT,         $KEY_1);
+  $.Input.BindControl(SOUND_TEST,           $KEY_C);
   
 }
 
@@ -50,8 +49,9 @@ void $Start()
   memset(PLAYER, 0, sizeof(PLAYER));
   
   // Absolutely temporary.
-  PLAYER[0].obj.type = OT_PLAYER;
-  ME = &PLAYER[0];
+  ME_INDEX = 0;
+  PLAYER[ME_INDEX].obj.type = OT_PLAYER;
+  ME = &PLAYER[ME_INDEX];
 
   memset(&BALL, 0, sizeof(BALL));
   BALL.obj.type = OT_BALL;
@@ -102,16 +102,19 @@ void $Update()
 
     if ($.Input.ControlDown(CONTROL_LEFT))
     {
-      ME->steering = -10;
+      ME->steering = -$Deg2Rad(40);
     }
     else if ($.Input.ControlDown(CONTROL_RIGHT))
     {
-      ME->steering = +10;
+      ME->steering = +$Deg2Rad(40);
     }
     else
     {
       ME->steering = 0;
     }
+
+
+    ME->handBrake = $.Input.ControlDown(CONTROL_HANDBRAKE);
 
     if ($.Input.ControlDown(CONTROL_FORWARD))
       ME->acceleratorBrake = 100;
@@ -137,12 +140,10 @@ void $Update()
 
   if (CAMERA_THETA_PID_ENABLED)
   {
-    f32 error = CAMERA_THETA_DEFAULT - CAMERA_THETA;
-    //f32 before = CAMERA_THETA;
+    f32 error = PidError(CAMERA_THETA_DEFAULT, CAMERA_THETA);
     CAMERA_THETA_PID_DELTA = UpdatePid(&CAMERA_THETA_PID, error, $.fixedDeltaTime);
     CAMERA_THETA += CAMERA_THETA_PID_DELTA * $.fixedDeltaTime * 4.0f;
-    //printf("BEFORE=%.1f, AFTER=%.1f, ERROR=%.1f, DELTA=%.1f\n", before, CAMERA_THETA, error, CAMERA_THETA_PID_DELTA);
-
+    
     if (AbsDifference(CAMERA_THETA, CAMERA_THETA_DEFAULT) < 1.0f)
     {
       CAMERA_THETA = CAMERA_THETA_DEFAULT;
@@ -158,6 +159,12 @@ float rotationTimer = 0.0f;
 
 void $Draw()
 {
+  if ($.Input.ControlReleased(CONTROL_AUTOPILOT))
+  {
+    printf("Autopilot\n");
+    ME->autopilot = !ME->autopilot;
+  }
+  
   rotationTimer += (1.0f / 60.0f) * 10.0f;
   rotationTimer = ConstrainAngle(rotationTimer);
 
@@ -237,20 +244,24 @@ void $Draw()
   $.Canvas.DrawTextF(&CANVAS, &FONT, DB16_BANANA, 0, 200 - 9, "FPS %.1f, Triangles: %i Yaw: %i", $.Stats.fps, $.Stats.nbTriangles, ME->obj.yaw);
   if (ME != NULL)
   {
-    $.Canvas.DrawTextF(&CANVAS, &FONT, DB16_BANANA, 0, 200 - 18, "XYZ: %.1f %.1f VEL: %.1f %.1f ACC: %.1f %.1f A: %i S: %i",
+   $.Canvas.DrawTextF(&CANVAS, &FONT, DB16_BANANA, 0, 200 - 18 - 9, "CAR: %.1f %.1f T:%i S:%.1f H:%i",
      ME->obj.position.x, ME->obj.position.z, 
-     ME->obj.velocity.x, ME->obj.velocity.z, 
-     ME->obj.acceleration.x, ME->obj.acceleration.z, 
-     ME->acceleratorBrake, ME->steering);
-  }
-   $.Canvas.DrawTextF(&CANVAS, &FONT, DB16_BANANA, 0, 200 - 18 - 9, "XYZ: %.1f %.1f VEL: %.1f %.1f ACC: %.1f %.1f",
-     BALL.obj.position.x, BALL.obj.position.z, 
-     BALL.obj.velocity.x, BALL.obj.velocity.z, 
-     BALL.obj.acceleration.x, BALL.obj.acceleration.z);
+     (i32) ME->acceleratorBrake, ME->steering, (i32) ME->handBrake);
+   
+   if (ME->autopilot)
+   {  
+    $.Canvas.DrawText(&CANVAS, &FONT, DB16_INDIGO, 0, 9, "<<<AUTO-PILOT>>>");
+   }
 
+  }
+  
+    $.Canvas.DrawTextF(&CANVAS, &FONT, DB16_BANANA, 0, 200 - 18, "BALL: %.1f %.1f",
+     BALL.obj.position.x, BALL.obj.position.z, 
+     BALL.obj.velocity.x, BALL.obj.velocity.z);
 
   
    $.Canvas.DrawTextF(&CANVAS, &FONT, DB16_FADED_RED, 0, 0, "R: %i B: %i", BALL.red, BALL.blue);
+
 
   $.Canvas.Render(&CANVAS, &SURFACE);
 

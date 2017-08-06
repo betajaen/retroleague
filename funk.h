@@ -57,5 +57,10 @@ void MakePid(Pid* pid, f32 p, f32 i, f32 d);
 void MakePidDefaults1(Pid* pid);
 f32 UpdatePid(Pid* pid, f32 error, f32 time);
 
+inline f32 PidError(f32 target, f32 current)
+{
+  return target - current;
+}
+
 #endif
 

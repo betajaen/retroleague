@@ -54,6 +54,14 @@ inline f32 Player_GetBrake(Player* player)
   return 0;
 }
 
+inline f32 Player_GetHandBrake(Player* player)
+{
+  i8 v = player->handBrake;
+  if (v)
+    return 1.0f;
+  return 0.0f;
+}
+
 void Player_TickPhysics(Player* player)
 {
   //  Vec3f velocity, acceleration; //, lateralFrontForce, lateralRearForce, traction, drag, force;
@@ -61,7 +69,10 @@ void Player_TickPhysics(Player* player)
   //f32 rotAngle, sideslip, slipAngleFront, slipAngleRear, angularAcceleration, torque,
   f32 sn = sinf(player->heading),
   cs = cosf(player->heading),
-  steerAngle = $Deg2Rad((f32) player->steering * 4.0f);
+  steerAngle = (f32) player->steering;
+
+  steerAngle = $Clamp(steerAngle, -PLAYER_maxSteer, PLAYER_maxSteer);
+  player->steering = steerAngle;
 
 	// Get velocity in local car coordinates
 	player->carVelocity.FORWARD = cs * player->obj.velocity.FORWARD + sn * player->obj.velocity.RIGHT;
@@ -81,13 +92,13 @@ void Player_TickPhysics(Player* player)
 	f32 slipAngleRear  = atan2f(player->carVelocity.RIGHT + yawSpeedRear,  fabsf(player->carVelocity.FORWARD));
 
 	f32 tireGripFront = PLAYER_tireGrip;
-	f32 tireGripRear = PLAYER_tireGrip; // * (1.0 - this.inputs.ebrake * (1.0 - PLAYER_lockGrip)); // reduce rear grip when ebrake is on
+	f32 tireGripRear = PLAYER_tireGrip * (1.0f - Player_GetHandBrake(player)); // * (1.0 - this.inputs.ebrake * (1.0 - PLAYER_lockGrip)); // reduce rear grip when ebrake is on
 
 	f32 frictionForceFront_cy = $Clamp(-PLAYER_cornerStiffnessFront * slipAngleFront, -tireGripFront, tireGripFront) * axleWeightFront;
 	f32 frictionForceRear_cy = $Clamp(-PLAYER_cornerStiffnessRear * slipAngleRear, -tireGripRear, tireGripRear) * axleWeightRear;
 
 	//  Get amount of brake/throttle from our inputs
-	f32 brake = Player_GetBrake(player) * 100.0f; // $Min(this.inputs.brake * PLAYER_brakeForce + this.inputs.ebrake * PLAYER_eBrakeForce, PLAYER_brakeForce);
+	f32 brake = $Max(Player_GetBrake(player), Player_GetHandBrake(player)) * 100.0f; // $Min(this.inputs.brake * PLAYER_brakeForce + this.inputs.ebrake * PLAYER_eBrakeForce, PLAYER_brakeForce);
 	f32 throttle = Player_GetThrottle(player) * 100.0f; //this.inputs.throttle * PLAYER_engineForce;
 
 
@@ -176,12 +187,134 @@ void Player_TickBallCollision(Player* player, Ball* ball)
     #endif
 
   }
+}
 
+#define AI_STATE_NONE              0
+#define AI_STATE_MOVE_TOWARDS_BALL 1
+#define AI_STATE_SHOOT             2
 
+#define PID_THROTTLE_BRAKE    a
+#define PID_STEERING b
+
+#if 1
+#define PID_DEBUG(T, ...) printf(T, __VA_ARGS__)
+#else
+#define PID_DEBUG(T, ...)
+#endif
+
+void Player_AI_StartMoveTowardsBall(Player* player, Ball* ball)
+{
+  Pid* throttle = &player->ai.PID_THROTTLE_BRAKE;
+  Pid* steering = &player->ai.PID_STEERING;
+
+  MakePidDefaults1(throttle);
+  MakePidDefaults1(steering);
+  steering->min = -PLAYER_maxSteer;
+  steering->max = PLAYER_maxSteer;
+}
+
+void Player_AI_TickMoveTowardsBall(Player* player, Ball* ball)
+{
+  Pid* throttle = &player->ai.PID_THROTTLE_BRAKE;
+  Pid* steering = &player->ai.PID_STEERING;
+  
+  Vec3f s = player->obj.position;
+  s.y = 0;
+  Vec3f t = ball->obj.position;
+  t.y = 0;
+  Vec3f direction = $Vec3_Sub(ball->obj.position, player->obj.position);
+  f32 distance  = $Vec3_Length(direction);
+  direction = $Vec3_Normalise(direction);
+  
+  t.x -= s.z;
+  t.z -= s.z;
+  
+  f32 angle = atan2f(t.z, t.y);
+  
+  angle = atan2f(sinf(angle), cosf(angle));
+
+  //f32 angle = atan2f(t.z, t.x) + $Deg2Rad(-90.0f);
+
+  //f32 angle = acosf($Vec3_Dot(s, t)/( $Vec3_Length(s) * $Vec3_Length(t) ));
+
+  //f32 angle = (atan2f(t.z, t.x) - atan2f(s.z, s.x));
+  
+  //angle = atan2f(sinf(angle), cosf(angle));
+
+  //if (angle < 0) angle += 2 * $PI;
+  //angle = $Rad2Deg(angle);
+
+  PID_DEBUG("Angle=%f", $Rad2Deg(angle));
+
+  f32 error = PidError($Deg2Rad(90.0f), angle);
+  error = atan2f(sinf(error ), cosf(error ));
+  f32 newSteering = UpdatePid(steering, error, $.fixedDeltaTime);
+  
+  newSteering = atan2f(sinf(newSteering ), cosf(newSteering ));
+
+  PID_DEBUG("Err=%f NewAdd=%f, Steering=%f", $Rad2Deg(error), $Rad2Deg(newSteering), $Rad2Deg(player->steering));
+  player->steering = newSteering; // * $.fixedDeltaTime; // $Deg2Rad(newSteering);
+  
+}
+
+void Player_AI_StartShootState(Player* player, Ball* ball)
+{
+}
+
+void Player_AI_TickShootState(Player* player, Ball* ball)
+{
+}
+
+void Player_TickAI(Player* player, Ball* ball)
+{
+  PID_DEBUG("[%i]", player->ai.state);
+
+  switch(player->ai.state)
+  {
+    default:
+    case AI_STATE_NONE:
+    {
+      Vec3f direction = $Vec3_Sub(ball->obj.position, player->obj.position);
+      f32 distance  = $Vec3_Length(direction);
+      direction = $Vec3_Normalise(direction);
+
+      if (distance < 3.0f)
+      {
+        player->ai.state = AI_STATE_SHOOT;
+        Player_AI_StartShootState(player, ball);
+      }
+      else
+      {
+        player->ai.state = AI_STATE_MOVE_TOWARDS_BALL;
+        Player_AI_StartMoveTowardsBall(player, ball);
+      }
+    }
+    break;
+    case AI_STATE_MOVE_TOWARDS_BALL:
+    {
+      Player_AI_TickMoveTowardsBall(player, ball);
+    }
+    break;
+    case AI_STATE_SHOOT:
+    {
+    
+    }
+    break;
+  }
+
+  #if (1)
+    printf("\n");
+  #endif
 }
 
 void Player_Tick(Player* player)
 {
+  
+  if (player->autopilot)
+  {
+    Player_TickAI(player, &BALL);
+  }
+  
   Player_TickBallCollision(player, &BALL);
   Player_TickPhysics(player);
 }

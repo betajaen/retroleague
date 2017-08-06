@@ -6,6 +6,7 @@ Scene   SCENE;
 Canvas  CANVAS;
 Player  PLAYER[MAX_PLAYERS];
 Player* ME;
+u32     ME_INDEX;
 Ball    BALL;
 Font    FONT;
 Bitmap  ART;

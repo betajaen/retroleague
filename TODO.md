@@ -6,13 +6,14 @@
 - [ ] Controller for player object
 - [ ] Controller for networked object
 - [x] Car physics (movement, accelerator, brake and steering)
-- [ ] Ball physics (movement for now)
-- [ ] Collisions
-- [ ] Rotate camera around car with mouse/keys
+- [x] Ball physics (movement for now)
+- [x] Collisions
+- [x] Rotate camera around car with mouse/keys
 - [ ] Magnet power (3 second cooldown)
 - [ ] Punt power (push ball into goal type power, 5 second cooldown)
 - [ ] Spin car around really quickly to hit it. (3 second cooldown) - super hand brake turn - like a kick
- 
+- [ ] AI (Single player)
+
 // Game Design
 
 1. Car game

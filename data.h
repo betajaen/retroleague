@@ -41,8 +41,9 @@
 #define CONTROL_CAMERA_LEFT  5
 #define CONTROL_CAMERA_RIGHT 6
 #define CONTROL_UP         7
-#define CONTROL_DOWN       8
-#define SOUND_TEST         9
+#define CONTROL_AUTOPILOT       8
+#define CONTROL_HANDBRAKE  9
+#define SOUND_TEST         10
 
 #define OT_NONE   0
 #define OT_PLAYER 1
@@ -57,13 +58,27 @@ typedef struct
   i16   yaw;
 } Object;
 
+typedef struct
+{
+ f32 prevError, intAccum, p, i, d, max, min;
+} Pid;
+
+typedef struct
+{
+  u8 state;
+  Pid a, b;
+} Ai;
+
 typedef struct 
 {
   Object obj;
+  Ai ai;
+  u8 autopilot;
   u8 team;                // 0 - red, 1 - blue
-  i8 steering;            // steering in whatever units. - to +
-  i8 acceleratorBrake;    // < 0 brake, > 0 accelerate, 0 = none
-  f32 angularVelocity;    // Angular velocity of player - not related to yaw, Stored in 1/10th degrees ($Rad2Deg(DEG) * 100)
+  f32 steering;            // steering in radians
+  i8 acceleratorBrake;      // < 0 brake, > 0 accelerate, 0 = none
+  i8 handBrake;           
+  f32 angularVelocity;      // Angular velocity of player - not related to yaw, Stored in 1/10th degrees ($Rad2Deg(DEG) * 100)
   f32 heading;              // True yaw
   f32 yawRate;
   f32 absVelocity;
@@ -87,17 +102,13 @@ typedef struct
   Vec3f delta, normal, pos;
 } IntersectPointResult;
 
-typedef struct
-{
- f32 prevError, intAccum, p, i, d, max, min;
-} Pid;
-
 extern f32     DELTA;
 extern Surface SURFACE;
 extern Scene   SCENE;
 extern Canvas  CANVAS;
 extern Player  PLAYER[MAX_PLAYERS];
 extern Player* ME;
+extern u32     ME_INDEX;
 extern Ball    BALL;
 extern Font    FONT;
 extern Bitmap  ART;
