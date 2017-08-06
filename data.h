@@ -47,12 +47,20 @@
 #define CONTROL_POWER_PUNT 12
 #define CONTROL_POWER_MAGNET 13
 #define CONTROL_POWER_SPIN 14
-#define SOUND_TEST         15
+#define CONTROL_START_SINGLE 15
+#define CONTROL_START_MULTI 16
+
+#define SOUND_TEST         17
 
 #define OT_NONE   0
 #define OT_PLAYER 1
 #define OT_BALL   2
 #define OT_WHEEL  3
+
+#define GAME_STATE_TITLE           0
+#define GAME_STATE_SINGLE          1
+#define GAME_STATE_NETWORK_CONNECT 2
+#define GAME_STATE_MULTI           3
 
 typedef struct
 {
@@ -154,6 +162,8 @@ extern Vec3f   CAMERA_ROTATION;
 extern f32     CAMERA_THETA;
 extern f32     CAMERA_THETA_TIME;
 extern u32     FRAME_COUNT;
+extern Bitmap  TITLE;
+extern i32     GAME_STATE;
 
 #endif
 

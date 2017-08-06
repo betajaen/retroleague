@@ -89,5 +89,14 @@ inline f32 PidError(f32 target, f32 current)
   return target - current;
 }
 
+void Draw_Title();
+void Update_Scene();
+void Start_SinglePlayer();
+void Tick_Singleplayer();
+void Draw_Singleplayer();
+void Start_Multiplayer();
+void Tick_Multiplayer();
+void Draw_Multiplayer();
+
 #endif
 

@@ -77,10 +77,12 @@ inline f32 Player_GetHandBrake(Player* player)
 
 void Player_TickPhysics(Player* player, bool isAnimating)
 {
+  #if 0
   if (player->isNetwork)
   {
     return;
   }
+  #endif
 
   //  Vec3f velocity, acceleration; //, lateralFrontForce, lateralRearForce, traction, drag, force;
 
