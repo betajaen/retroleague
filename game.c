@@ -14,6 +14,7 @@ Mesh    MESH_PLAYER;
 Mesh    MESH_BALL;
 Vec3f   CAMERA_POSITION;
 Vec3f   CAMERA_ROTATION;
+u32     FRAME_COUNT;
 
 void Game_Tick()
 {

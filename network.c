@@ -8,6 +8,7 @@
 #define NET_MSG_CLIENT_UPDATE         'u'    // Player send full update
 #define NET_MSG_CLIENT_REQUEST_STATE  'r'    // Response from server for full update
 
+#define NET_MSG_SERVER_FULL           'F'    // Server is full.
 #define NET_MSG_SERVER_HELLO          'H'    // You have connected
 #define NET_MSG_SERVER_GOODBYE        'G'    // You have disconnected
 #define NET_MSG_SERVER_PARTIAL_UPDATE 'P'    // Here is a partial update
@@ -22,25 +23,24 @@
 // Time stamp
 // >> U32
 
-u32 timestamps[MAX_PLAYERS];
 
 bool CheckTimestamp(u8 playerIndex, u32 timestamp)
 {
-  if (timestamp < timestamps[playerIndex])
+  if (timestamp < PLAYER[playerIndex].timestamp)
   {
     // old message
     printf("Old message from Player: %i", playerIndex);
     return false;
   }
 
-  timestamps[playerIndex] = timestamp;
+  PLAYER[playerIndex].timestamp = timestamp;
 
   return true;
 }
 
-u8 ReadPlayerIndex(const char* message, u32 index)
+u8 ReadSingleDigit(const char* message, u32 index)
 {
-  return '0' - message[index];
+  return message[index] - '0';
 }
 
 u32 ReadUint(const char* message, u32 index)
@@ -48,30 +48,44 @@ u32 ReadUint(const char* message, u32 index)
   return atoi(&message[index]);
 }
 
-void ReceiveMessage(const char* message, u32 length)
+void ReceiveMessage(const char* message)
 {
-  if (length == 0)
-    return;
-  
   u8 messageType = message[0];
   
   switch(messageType)
   {
+    // F
+    // PLAYER_INDEX
+    case NET_MSG_SERVER_FULL:
+    {
+      if (strlen(message) != 1)
+        return;
+
+      printf("[SERVER] Server is full.\n");
+    }
+    break;
     // H
     // PLAYER_INDEX
+    // TEAM
     case NET_MSG_SERVER_HELLO:
     {
-      printf("[SERVER] I have Connected.\n");
-      memset(timestamps, 0, sizeof(timestamps));
-      u8 playerIndex = ReadPlayerIndex(message, 1);
+      if (strlen(message) != 3)
+        return;
 
-      Player_New(playerIndex, true);
+     // printf("[SERVER] I have Connected.\n");
+      memset(PLAYER, 0, sizeof(PLAYER));
+      u8 playerIndex = ReadSingleDigit(message, 1);
+      u8 team = ReadSingleDigit(message, 2);
+      Player_New(playerIndex, team, true);
     }
     break;
     // G
     case NET_MSG_SERVER_GOODBYE:
     {
-      printf("[SERVER] I have Disconnected.\n");
+      if (strlen(message) != 1)
+        return;
+
+    //  printf("[SERVER] I have Disconnected.\n");
       if (ME)
       {
         Player_DeleteMe();
@@ -83,8 +97,8 @@ void ReceiveMessage(const char* message, u32 length)
     // 2 TIMESTAMP      6
     case NET_MSG_SERVER_PARTIAL_UPDATE:
     {
-      u8 playerIndex = ReadPlayerIndex(message, 1);
-      printf("[SERVER] Received Partial Update %i\n", playerIndex);
+      u8 playerIndex = ReadSingleDigit(message, 1);
+//      printf("[SERVER] Received Partial Update %i\n", playerIndex);
       u32 timeStamp  = ReadUint(message, 2);
       if (CheckTimestamp(playerIndex, timeStamp) == false)
         return;
@@ -96,8 +110,8 @@ void ReceiveMessage(const char* message, u32 length)
     // 2 TIMESTAMP     6
     case NET_MSG_SERVER_UPDATE:
     {
-      u8 playerIndex = ReadPlayerIndex(message, 1);
-      printf("[SERVER] Received Full Update %i\n", playerIndex);
+      u8 playerIndex = ReadSingleDigit(message, 1);
+ //     printf("[SERVER] Received Full Update %i\n", playerIndex);
       u32 timeStamp  = ReadUint(message, 2);
       if (CheckTimestamp(playerIndex, timeStamp) == false)
         return;
@@ -106,16 +120,16 @@ void ReceiveMessage(const char* message, u32 length)
     break;
     case NET_MSG_SERVER_REQUEST_STATE:
     {
-      printf("[SERVER] Wants full Update\n");
+  //    printf("[SERVER] Wants full Update\n");
       Player_SendFullUpdate();
     }
     break;
-    // 0 U
+    // 0 D
     // 1 PLAYER_INDEX  2
     case NET_MSG_SERVER_DELETE_PLAYER:
     {
-      printf("[SERVER] Delete player");
-      u8 playerIndex = ReadPlayerIndex(message, 1);
+   //   printf("[SERVER] Delete player");
+      u8 playerIndex = ReadSingleDigit(message, 1);
       Player_Delete(playerIndex);
     }
     break;

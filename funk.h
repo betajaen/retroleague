@@ -25,7 +25,7 @@ void Player_SendFullUpdate();
 void Player_SendPartialUpdate(u8 type, void* data);
 void Player_Delete(u8 playerIndex);
 void Player_DeleteMe();
-void Player_New(u8 playerIndex, bool isMe);
+void Player_New(u8 playerIndex, u8 team, bool isMe);
 
 bool Can_Power(Player* player, u32 power);
 void Activate_Power(Player* player, u32 power);
@@ -38,6 +38,8 @@ inline bool IsAnimating(Animation* anim)
 void Animate_Tick(Animation* anim, Vec3f* pos, f32* yaw);
 void AnimateMoveXZ(Animation* anim, Vec3f posFrom, Vec3f posTo, f32 yawFrom, f32 yawTo, f32 time, f32 speed);
 void AnimateSpin(Animation* anim, f32 amountPerTick,f32 finalAngle, f32 time);
+
+void ReceiveMessage(const char* message);
 
 // Decode angle to radians
 inline f32 DecodeAngle(i16 angle)

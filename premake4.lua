@@ -8,11 +8,11 @@ solution "Retroleague"
       debugdir            "bin"
 
       configuration "Debug"
-        defines           { "DEBUG",  }
+        defines           { "DEBUG", "_CRT_SECURE_NO_WARNINGS" }
         flags             { "Symbols" }
 
       configuration "Release"
-        defines           { "NDEBUG"}
+        defines           { "NDEBUG", "_CRT_SECURE_NO_WARNINGS"}
         flags             { "Optimize" }
 
       --------------------------------------------------------------------------

@@ -42,6 +42,8 @@ void $Setup()
 
 void $Start()
 {
+  FRAME_COUNT = 0;
+
   $.Bitmap.Load(&ART, "art.png");
   $.Font.New(&FONT, "font.png", $Rgb(0,0,255), $Rgb(255, 0, 255));
   // $.Music.Play("dragon2.mod");
@@ -53,6 +55,7 @@ void $Start()
 
   memset(PLAYER, 0, sizeof(PLAYER));
   
+  #if 0
   // Absolutely temporary.
   for(u32 i=0;i < MAX_PLAYERS;i++)
   {
@@ -64,15 +67,12 @@ void $Start()
   ME = &PLAYER[0];
   ME->autopilot = false;
   ME->team = 1;
+  #endif
 
   memset(&BALL, 0, sizeof(BALL));
   BALL.obj.type = OT_BALL;
-  BALL.obj.position.FORWARD = 30;
+  BALL.obj.position.FORWARD = 0;
   BALL.magnet = 255;
-
-  $.Net.Connect("localhost", 5000);
-  char* n = "HELLO";
-  $.Net.SendMessage(5, n);
 
   $.Scene.SetPovLookAtXyz(&SCENE, 10, 10, 10, 0,0,0);
 
@@ -80,21 +80,33 @@ void $Start()
   CAMERA_THETA_TIME = 0.0f;
   CAMERA_THETA_PID_ENABLED = false;
   CAMERA_THETA_PID_DELTA = 0.0f;
+  
+  $.Net.Connect("localhost", 5000);
+  $.Net.SendMessage(1, "H");
 }
 
 void $Update()
 {
+  FRAME_COUNT++;
+  
   if ($.Net.PeekMessage())
   {
-    u8* data = $TempNewA(u8, 10255);
+    u8* data = $TempNewA(u8, 1025);
     for(u32 ii=0;ii < 8;ii++)
     {
       u32 length = 0;
-      printf("%i\n", ii);
       if ($.Net.RecvMessage(&length, 1025, data) == false)
         break;
       data[length] = '\0';
-      printf("%s\n", data);
+      //printf("> %s\n", data);
+      
+      char *line = strtok(data, "\n");
+      while(line)
+      {
+          ReceiveMessage(line);
+          line = strtok(NULL, "\n");
+      }
+
       if ($.Net.PeekMessage() == false)
         break;
     }
@@ -172,11 +184,19 @@ void $Update()
 
 float rotationTimer = 0.0f;
 
+int syncTimer = 0;
+
 void $Draw()
 {
   if (ME == NULL)
     return;
-  
+
+  if (syncTimer++ > 20)
+  {
+    Player_SendFullUpdate();
+    syncTimer = 0;
+  }
+
   if ($.Input.ControlReleased(CONTROL_AUTOPILOT))
   {
     ME->autopilot = !ME->autopilot;
@@ -286,12 +306,19 @@ void $Draw()
 
   $.Scene.Render(&SCENE, &SURFACE);
   $.Canvas.DrawTextF(&CANVAS, &FONT, DB16_BANANA, 0, 200 - 9, "FPS %.1f, Triangles: %i Yaw: %i", $.Stats.fps, $.Stats.nbTriangles, ME->obj.yaw);
+  
+  for(u32 ii=0;ii < MAX_PLAYERS;ii++)
+  {
+    Player* player = &PLAYER[ii];
+    if (player->obj.type != OT_PLAYER)
+      continue;
+    $.Canvas.DrawTextF(&CANVAS, &FONT, DB16_BANANA, 0, 200 - 18 - 9 - (ii * 9), "[%i] %i %.1f %.1f",
+      ii, player->timestamp,
+      player->obj.position.x, player->obj.position.z);
+  }
+  
   if (ME != NULL)
   {
-   $.Canvas.DrawTextF(&CANVAS, &FONT, DB16_BANANA, 0, 200 - 18 - 9, "CAR: %.1f %.1f T:%i S:%.1f H:%i",
-     ME->obj.position.x, ME->obj.position.z, 
-     (i32) ME->acceleratorBrake, ME->steering, (i32) ME->handBrake);
-   
    if (ME->autopilot)
    {  
     $.Canvas.DrawText(&CANVAS, &FONT, DB16_INDIGO, 0, 9, "<<<AUTO-PILOT>>>");

@@ -103,6 +103,7 @@ typedef struct
   Animation anim;
   u8 autopilot;
   u8 team;                  // 0 - red, 1 - blue
+  u8 isNetwork;
   u8 powerControls;         // 
   u8 powerAvailable;        // 
   f32 powerCooldown[MAX_POWERS];
@@ -114,6 +115,7 @@ typedef struct
   f32 yawRate;
   f32 absVelocity;
   Vec3f carAcceleration, carVelocity;
+  u32 timestamp;
 } Player;
 
 typedef struct
@@ -151,6 +153,7 @@ extern Vec3f   CAMERA_POSITION;
 extern Vec3f   CAMERA_ROTATION;
 extern f32     CAMERA_THETA;
 extern f32     CAMERA_THETA_TIME;
+extern u32     FRAME_COUNT;
 
 #endif
 
