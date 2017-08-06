@@ -153,7 +153,7 @@ static void Draw_Scene()
   ballRot.pitch = 0;
   ballRot.yaw   = BALL.obj.yaw;
   ballRot.roll  = 0;
-  $.Scene.DrawMesh(&SCENE, &MESH_BALL, BALL.obj.position, ballRot);
+  $.Scene.DrawCustomShaderMesh(&SCENE, &MESH_BALL, 4, BALL.obj.position, ballRot);
   
   /*
   for(u32 i=0;i < 40;i++)
@@ -169,9 +169,11 @@ static void Draw_Scene()
     Player* player = &PLAYER[ii];
     if (player->obj.type != OT_PLAYER)
       continue;
-    $.Canvas.DrawTextF(&CANVAS, &FONT, DB16_BANANA, 0, 200 - 18 - 9 - (ii * 9), "[%i] %i %.1f %.1f",
+    $.Canvas.DrawTextF(&CANVAS, &FONT, DB16_BANANA, 0, 200 - 18 - 9 - (ii * 9), "[%i] %i %.1f %.1f %.1f",
       ii, player->timestamp,
-      player->obj.position.x, player->obj.position.z);
+      player->obj.position.x, player->obj.position.z,
+      $Rad2Deg(player->heading)
+      );
   }
   
   if (ME != NULL)
@@ -290,17 +292,40 @@ void Start_SinglePlayer()
   for(u32 i=0;i < MAX_PLAYERS;i++)
   {
     PLAYER[i].obj.type = OT_PLAYER;
-    PLAYER[i].obj.position.x = -BOUNDS_SIZE_HALF_F + 10.0f * i;
     PLAYER[i].autopilot = true;
   }
 
   ME = &PLAYER[0];
   ME->autopilot = false;
   
-  PLAYER[1].team = 0;
+ //f32 x = -(GOAL_SIZE_X_F * 0.5f) + (ii * dotDistance);
+ //f32 z =  + (jj * dotDistance);
+ //$.Scene.DrawGroundDot(&SCENE, DB16_FADED_RED, x, z);
+ //z = -BOUNDS_SIZE_HALF_F - GOAL_SIZE_X_F + (jj * dotDistance);
+ //$.Scene.DrawGroundDot(&SCENE, DB16_CADET_BLUE, x, z);
+
+  f32 x = GOAL_SIZE_X_F;
+  f32 z = BOUNDS_SIZE_HALF_F - BOUNDS_SIZE_HALF_F * 0.5f;
+
+  PLAYER[0].team = 0;
+  PLAYER[0].obj.position = $Vec3_Xyz(x, 0, z);
+  PLAYER[0].obj.yaw = -120;
+  PLAYER[0].heading = $Deg2Rad(PLAYER[0].obj.yaw);
+  
   PLAYER[1].team = 1;
+  PLAYER[1].obj.position = $Vec3_Xyz(-x, 0, -z);
+  PLAYER[1].obj.yaw = 60;
+  PLAYER[1].heading = $Deg2Rad(PLAYER[1].obj.yaw);
+
   PLAYER[2].team = 0;
+  PLAYER[2].obj.position = $Vec3_Xyz(-x, 0, z);
+  PLAYER[2].obj.yaw = 120;
+  PLAYER[2].heading = $Deg2Rad(PLAYER[2].obj.yaw);
+
   PLAYER[3].team = 1;
+  PLAYER[3].obj.position = $Vec3_Xyz(x, 0, -z);
+  PLAYER[3].obj.yaw = -60;
+  PLAYER[3].heading = $Deg2Rad(PLAYER[3].obj.yaw);
   
   CAMERA_THETA      = CAMERA_THETA_DEFAULT;
   CAMERA_THETA_TIME = 0.0f;

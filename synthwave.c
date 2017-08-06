@@ -1126,12 +1126,14 @@ $$Fwd_FragmentShader(Standard);
 $$Fwd_FragmentShader(Shadow);
 $$Fwd_FragmentShader(Red);
 $$Fwd_FragmentShader(Blue);
+$$Fwd_FragmentShader(Green);
 
-static $$FragmentShader $$FRAGMENT_SHADERS[4] = {
+static $$FragmentShader $$FRAGMENT_SHADERS[5] = {
   $$Fragment_Shader_Standard,
   $$Fragment_Shader_Shadow,
   $$Fragment_Shader_Red,
   $$Fragment_Shader_Blue,
+  $$Fragment_Shader_Green,
 };
 
 
@@ -2840,4 +2842,8 @@ $$Make_FragmentShader(Red, {
 
 $$Make_FragmentShader(Blue, {
   $$FRAGMENT_SET_COLOUR(14);
+});
+
+$$Make_FragmentShader(Green, {
+  $$FRAGMENT_SET_COLOUR(16);
 });
