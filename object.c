@@ -331,13 +331,104 @@ void Player_TickAI(Player* player, Ball* ball)
 
   Player_AI_Resolve(player, &BALL);
 
-  #if (1)
+  #if (0)
     printf("\n");
   #endif
 }
 
+const char* POWERS_NAME[MAX_POWERS] = {
+  "PUNT",
+  "MAGNET",
+  "SPIN"
+};
+
+bool Can_Power(Player* player, u32 power)
+{
+  return (player->powerAvailable & (1 << power)) != 0;
+}
+
+void Activate_Power(Player* player, u32 power)
+{
+  player->powerControls |= (1 << power);
+}
+
+void Power_Activate_Punt(Player* player, Ball* ball)
+{
+  
+  Vec3f ballPos = ball->obj.position;
+  f32 distance = $Vec3_Length($Vec3_Sub(player->obj.position, ballPos));
+  
+  if (distance > 6.0f)
+  {
+    player->powerAvailable |= POWER_BIT_PUNT;
+    player->powerCooldown[POWER_PUNT] = 0.0f;
+    return;
+  }
+  
+    player->powerCooldown[POWER_PUNT] = 1.0f;
+
+  Vec3f tgt;
+  tgt.x = 0.0f;
+  tgt.y = 0.0f;
+
+  if (player->team == 0)
+    tgt.z = BOUNDS_SIZE_HALF_F;
+  else if (player->team == 1)
+    tgt.z = -BOUNDS_SIZE_HALF_F;
+
+  Vec3f direction = $Vec3_Sub(tgt, ballPos);
+  direction = $Vec3_Normalise(direction);
+
+  f32 force = 80.0f;
+  ball->obj.velocity = $Vec3_Add(ball->obj.velocity, $Vec3_MulS(direction, force));
+
+}
+
+void Power_Activate_Magnet(Player* player, Ball* ball)
+{
+  player->powerCooldown[POWER_MAGNET] = 5.0f;
+  printf("** Magnet\n");
+}
+
+void Power_Activate_Spin(Player* player, Ball* ball)
+{
+  player->powerCooldown[POWER_SPIN] = 2.0f;
+  printf("** Spin\n");
+}
+
 void Player_Tick(Player* player)
 {
+  
+  for(u32 ii=0;ii < MAX_POWERS;ii++)
+  {
+    player->powerCooldown[ii] -= $.fixedDeltaTime;
+
+    if (player->powerCooldown[ii] > 0.0f)
+    {
+      printf("%s = %f\n", POWERS_NAME[ii], player->powerCooldown[ii]);
+    }
+
+    if (player->powerCooldown[ii] <= 0.0f && Can_Power(player, ii) == false)
+    {
+      printf("** Power Available: %s\n", POWERS_NAME[ii]);
+      player->powerAvailable |= 1 << ii;
+    }
+  }
+
+  for(u32 ii=0;ii < MAX_POWERS;ii++)
+  {
+    if ((player->powerControls & (1 << ii)) != 0)
+    {
+      player->powerControls  &= ~(1 << ii);
+      player->powerAvailable &= ~(1 << ii);
+      switch(ii)
+      {
+        case POWER_PUNT:   Power_Activate_Punt(player, &BALL); break;
+        case POWER_MAGNET: Power_Activate_Magnet(player, &BALL); break;
+        case POWER_SPIN:   Power_Activate_Spin(player, &BALL); break;
+      }
+    }
+  }
   
   if (player->autopilot)
   {

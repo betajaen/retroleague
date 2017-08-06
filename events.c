@@ -23,16 +23,19 @@ void $Setup()
   Mesh_MakePlayer(&MESH_PLAYER);
   Mesh_MakeBall(&MESH_BALL);
 
-  $.Input.BindControl(CONTROL_FORWARD,      $KEY_W);
-  $.Input.BindControl(CONTROL_BACKWARD,     $KEY_S);
-  $.Input.BindControl(CONTROL_LEFT,         $KEY_A);
-  $.Input.BindControl(CONTROL_RIGHT,        $KEY_D);
-  $.Input.BindControl(CONTROL_CAMERA_LEFT,  $KEY_Q);
-  $.Input.BindControl(CONTROL_CAMERA_RIGHT, $KEY_E);
-  $.Input.BindControl(CONTROL_HANDBRAKE,    $KEY_SPACE);
-  $.Input.BindControl(CONTROL_AUTOPILOT,    $KEY_TAB);
-  $.Input.BindControl(CONTROL_FLIP_180,     $KEY_X);
-  $.Input.BindControl(SOUND_TEST,           $KEY_C);
+  $.Input.BindControl(CONTROL_FORWARD,            $KEY_W);
+  $.Input.BindControl(CONTROL_BACKWARD,           $KEY_S);
+  $.Input.BindControl(CONTROL_LEFT,               $KEY_A);
+  $.Input.BindControl(CONTROL_RIGHT,              $KEY_D);
+  $.Input.BindControl(CONTROL_CAMERA_LEFT,        $KEY_Q);
+  $.Input.BindControl(CONTROL_CAMERA_RIGHT,       $KEY_E);
+  $.Input.BindControl(CONTROL_HANDBRAKE,          $KEY_SPACE);
+  $.Input.BindControl(CONTROL_AUTOPILOT,          $KEY_TAB);
+  $.Input.BindControl(CONTROL_CHEAT_FLIP_180,     $KEY_X);
+  $.Input.BindControl(CONTROL_POWER_PUNT,         $KEY_1);
+  $.Input.BindControl(CONTROL_POWER_MAGNET,       $KEY_2);
+  $.Input.BindControl(CONTROL_POWER_SPIN,         $KEY_3);
+  $.Input.BindControl(SOUND_TEST,                 $KEY_C);
   
 }
 
@@ -59,6 +62,7 @@ void $Start()
 
   ME = &PLAYER[0];
   ME->autopilot = false;
+  ME->team = 1;
 
   memset(&BALL, 0, sizeof(BALL));
   BALL.obj.type = OT_BALL;
@@ -170,9 +174,24 @@ void $Draw()
     ME->autopilot = !ME->autopilot;
   }
   
-  if ($.Input.ControlReleased(CONTROL_FLIP_180))
+  if ($.Input.ControlReleased(CONTROL_CHEAT_FLIP_180))
   {
     ME->heading -= $Deg2Rad(180.0f);
+  }
+
+  if ($.Input.ControlReleased(CONTROL_POWER_PUNT) && Can_Power(ME, POWER_PUNT))
+  {
+    Activate_Power(ME, POWER_PUNT);
+  }
+  
+  if ($.Input.ControlReleased(CONTROL_POWER_MAGNET) && Can_Power(ME, POWER_MAGNET))
+  {
+    Activate_Power(ME, POWER_MAGNET);
+  }
+  
+  if ($.Input.ControlReleased(CONTROL_POWER_SPIN) && Can_Power(ME, POWER_SPIN))
+  {
+    Activate_Power(ME, POWER_SPIN);
   }
 
   rotationTimer += (1.0f / 60.0f) * 10.0f;
@@ -261,6 +280,18 @@ void $Draw()
    if (ME->autopilot)
    {  
     $.Canvas.DrawText(&CANVAS, &FONT, DB16_INDIGO, 0, 9, "<<<AUTO-PILOT>>>");
+   }
+
+   for(u32 ii=0;ii < MAX_POWERS;ii++)
+   {
+      if (Can_Power(ME, ii))
+      {
+        $.Canvas.DrawTextF(&CANVAS, &FONT, DB16_INDIGO, 0, 18 + (ii * 9), "%s RDY", POWERS_NAME[ii]);
+      }
+      else
+      {
+        $.Canvas.DrawTextF(&CANVAS, &FONT, DB16_INDIGO, 0, 18 + (ii * 9), "%s %.1f",  POWERS_NAME[ii], ME->powerCooldown[ii]);
+      }
    }
 
   }

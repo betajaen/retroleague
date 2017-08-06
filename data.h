@@ -43,8 +43,11 @@
 #define CONTROL_UP         7
 #define CONTROL_AUTOPILOT       8
 #define CONTROL_HANDBRAKE  9
-#define CONTROL_FLIP_180   10
-#define SOUND_TEST         11
+#define CONTROL_CHEAT_FLIP_180   10
+#define CONTROL_POWER_PUNT 12
+#define CONTROL_POWER_MAGNET 13
+#define CONTROL_POWER_SPIN 14
+#define SOUND_TEST         15
 
 #define OT_NONE   0
 #define OT_PLAYER 1
@@ -70,13 +73,27 @@ typedef struct
   Pid a, b;
 } Ai;
 
+#define POWER_PUNT   0
+#define POWER_MAGNET 1
+#define POWER_SPIN   2
+#define MAX_POWERS   3
+
+#define POWER_BIT_PUNT    1
+#define POWER_BIT_MAGNET  2
+#define POWER_BIT_SPIN    4
+
+extern const char* POWERS_NAME[MAX_POWERS];
+
 typedef struct 
 {
   Object obj;
   Ai ai;
   u8 autopilot;
-  u8 team;                // 0 - red, 1 - blue
-  f32 steering;            // steering in radians
+  u8 team;                  // 0 - red, 1 - blue
+  u8 powerControls;         // 
+  u8 powerAvailable;        // 
+  f32 powerCooldown[MAX_POWERS];
+  f32 steering;             // steering in radians
   i8 acceleratorBrake;      // < 0 brake, > 0 accelerate, 0 = none
   i8 handBrake;           
   f32 angularVelocity;      // Angular velocity of player - not related to yaw, Stored in 1/10th degrees ($Rad2Deg(DEG) * 100)

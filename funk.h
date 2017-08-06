@@ -18,6 +18,9 @@ bool Object_IsAlive(Object* obj);
 void Player_Tick(Player* player);
 void Ball_Tick(Ball* ball);
 
+bool Can_Power(Player* player, u32 power);
+void Activate_Power(Player* player, u32 power);
+
 // Decode angle to radians
 inline f32 DecodeAngle(i16 angle)
 {
