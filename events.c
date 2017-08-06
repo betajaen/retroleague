@@ -50,9 +50,15 @@ void $Start()
   memset(PLAYER, 0, sizeof(PLAYER));
   
   // Absolutely temporary.
-  ME_INDEX = 0;
-  PLAYER[ME_INDEX].obj.type = OT_PLAYER;
-  ME = &PLAYER[ME_INDEX];
+  for(u32 i=0;i < MAX_PLAYERS;i++)
+  {
+    PLAYER[i].obj.type = OT_PLAYER;
+    PLAYER[i].obj.position.x = -BOUNDS_SIZE_HALF_F + 10.0f * i;
+    PLAYER[i].autopilot = true;
+  }
+
+  ME = &PLAYER[0];
+  ME->autopilot = false;
 
   memset(&BALL, 0, sizeof(BALL));
   BALL.obj.type = OT_BALL;
