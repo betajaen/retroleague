@@ -1,4 +1,4 @@
-#include "synthwave.h"
+#include "funk.h"
 
 f32 BALL_VERTS[]={
   -122.551f,-42.667f,-62.608f,
@@ -80,7 +80,7 @@ void Mesh_MakeBall(Mesh* mesh)
       triangle->v[kk].y = BALL_VERTS[(index * 3) + 1] / 100.0f;
       triangle->v[kk].z = BALL_VERTS[(index * 3) + 2] / 100.0f;
     }
-    triangle->colour = 5;
+    triangle->colour = DB16_BANANA;
   }
 
   $.Mesh.Finalise(mesh);

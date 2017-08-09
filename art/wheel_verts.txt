@@ -1,0 +1,27 @@
+Point	X	Y	Z
+0	10 cm	0 cm	0 cm
+1	-10 cm	-30 cm	0 cm
+2	-10 cm	-25.981 cm	15 cm
+3	-10 cm	-15 cm	25.981 cm
+4	-10 cm	0 cm	30 cm
+5	-10 cm	15 cm	25.981 cm
+6	-10 cm	25.981 cm	15 cm
+7	-10 cm	30 cm	0 cm
+8	-10 cm	25.981 cm	-15 cm
+9	-10 cm	15 cm	-25.981 cm
+10	-10 cm	0 cm	-30 cm
+11	-10 cm	-15 cm	-25.981 cm
+12	-10 cm	-25.981 cm	-15 cm
+13	-10 cm	0 cm	0 cm
+14	10 cm	-30 cm	0 cm
+15	10 cm	-25.981 cm	15 cm
+16	10 cm	-15 cm	25.981 cm
+17	10 cm	0 cm	30 cm
+18	10 cm	15 cm	25.981 cm
+19	10 cm	25.981 cm	15 cm
+20	10 cm	30 cm	0 cm
+21	10 cm	25.981 cm	-15 cm
+22	10 cm	15 cm	-25.981 cm
+23	10 cm	0 cm	-30 cm
+24	10 cm	-15 cm	-25.981 cm
+25	10 cm	-25.981 cm	-15 cm

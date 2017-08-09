@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "synthwave.h"
 
-#define IS_STREAMING 1
+#define IS_STREAMING 0
 
 #define MAX_PLAYERS 4
 #define BOUNDS_SIZE_F 150.0f
@@ -34,21 +34,44 @@
 #define DB16_HUNTER_GREEN 15
 #define DB16_LEAF 16
 
-#define CONTROL_FORWARD    1
-#define CONTROL_BACKWARD   2
-#define CONTROL_LEFT       3
-#define CONTROL_RIGHT      4
-#define CONTROL_CAMERA_LEFT  5
-#define CONTROL_CAMERA_RIGHT 6
-#define CONTROL_UP         7
-#define CONTROL_AUTOPILOT       8
-#define CONTROL_HANDBRAKE  9
-#define CONTROL_CHEAT_FLIP_180   10
-#define CONTROL_POWER_PUNT 12
-#define CONTROL_POWER_MAGNET 13
-#define CONTROL_POWER_SPIN 14
-#define CONTROL_START_SINGLE 15
-#define CONTROL_START_MULTI 16
+#define CONTROL_START_SINGLE 1
+#define CONTROL_START_MULTI 2
+
+#define CONTROL_P1_FORWARD        40
+#define CONTROL_P1_BACKWARD       41
+#define CONTROL_P1_LEFT           42
+#define CONTROL_P1_RIGHT          43
+#define CONTROL_P1_CAMERA_LEFT    44
+#define CONTROL_P1_CAMERA_RIGHT   45
+#define CONTROL_P1_AUTOPILOT      46
+#define CONTROL_P1_HANDBRAKE      47
+#define CONTROL_P1_POWER_KICK     48
+#define CONTROL_P1_POWER_MAGNET   49
+#define CONTROL_P1_POWER_SPIN     50
+
+#define CONTROL_P2_FORWARD        80
+#define CONTROL_P2_BACKWARD       81
+#define CONTROL_P2_LEFT           82
+#define CONTROL_P2_RIGHT          83
+#define CONTROL_P2_CAMERA_LEFT    84
+#define CONTROL_P2_CAMERA_RIGHT   85
+#define CONTROL_P2_AUTOPILOT      86
+#define CONTROL_P2_HANDBRAKE      87
+#define CONTROL_P2_POWER_KICK     88
+#define CONTROL_P2_POWER_MAGNET   89
+#define CONTROL_P2_POWER_SPIN     90
+
+#define CONTROL_P0_FORWARD        0
+#define CONTROL_P0_BACKWARD       1
+#define CONTROL_P0_LEFT           2
+#define CONTROL_P0_RIGHT          3
+#define CONTROL_P0_CAMERA_LEFT    4
+#define CONTROL_P0_CAMERA_RIGHT   5
+#define CONTROL_P0_AUTOPILOT      6
+#define CONTROL_P0_HANDBRAKE      7
+#define CONTROL_P0_POWER_KICK     8
+#define CONTROL_P0_POWER_MAGNET   9
+#define CONTROL_P0_POWER_SPIN     10
 
 #define SOUND_TEST         17
 
@@ -61,6 +84,8 @@
 #define GAME_STATE_SINGLE          1
 #define GAME_STATE_NETWORK_CONNECT 2
 #define GAME_STATE_MULTI           3
+#define GAME_STATE_SINGLE_SETUP    4
+#define GAME_STATE_MULTI_SETUP     5
 
 typedef struct
 {
@@ -93,22 +118,28 @@ typedef struct
   f32   time, maxTime, speed;
 } Animation;
 
-#define POWER_PUNT   0
+#define POWER_KICK   0
 #define POWER_MAGNET 1
 #define POWER_SPIN   2
 #define MAX_POWERS   3
 
-#define POWER_BIT_PUNT    1
+#define POWER_BIT_KICK    1
 #define POWER_BIT_MAGNET  2
 #define POWER_BIT_SPIN    4
 
 extern const char* POWERS_NAME[MAX_POWERS];
+
+typedef struct
+{
+  Vec3f size, halfSize, pos, axis, rect[4], a[2];
+} ObbXZ;
 
 typedef struct 
 {
   Object obj;
   Ai ai;
   Animation anim;
+  ObbXZ obb;
   u8 autopilot;
   u8 team;                  // 0 - red, 1 - blue
   u8 isNetwork;
@@ -123,7 +154,11 @@ typedef struct
   f32 yawRate;
   f32 absVelocity;
   Vec3f carAcceleration, carVelocity;
+  Vec3f extraVelocity;
   u32 timestamp;
+
+  Vec3f contactPoint;
+
 } Player;
 
 typedef struct
@@ -132,6 +167,7 @@ typedef struct
   u8     red, blue;
   u8     magnet;
   f32    magnetTime;
+  u8     lastTouch;
 } Ball;
 
 typedef struct
@@ -145,18 +181,18 @@ typedef struct
   Vec3f delta, normal, pos;
 } IntersectPointResult;
 
-extern f32     DELTA;
+
 extern Surface SURFACE;
-extern Scene   SCENE;
-extern Canvas  CANVAS;
+extern Scene   SCENES[4];
+extern Canvas  HUD;
 extern Player  PLAYER[MAX_PLAYERS];
-extern Player* ME;
-extern u32     ME_INDEX;
+extern Player* LOCAL[2];
 extern Ball    BALL;
 extern Font    FONT;
 extern Bitmap  ART;
-extern Mesh    MESH_PLAYER;
+extern Mesh    MESH_PLAYER[2];
 extern Mesh    MESH_BALL;
+extern Mesh    MESH_WHEEL;
 extern Vec3f   CAMERA_POSITION;
 extern Vec3f   CAMERA_ROTATION;
 extern f32     CAMERA_THETA;

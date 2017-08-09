@@ -2,12 +2,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-#define NET_MSG_CLIENT_HELLO          'h'    // Client Connection
-#define NET_MSG_CLIENT_GOODBYE        'g'    // Client Disconnection
-#define NET_MSG_CLIENT_PARTIAL_UPDATE 'p'    // Player sends partial update
-#define NET_MSG_CLIENT_UPDATE         'u'    // Player send full update
-#define NET_MSG_CLIENT_REQUEST_STATE  'r'    // Response from server for full update
-
 #define NET_MSG_SERVER_FULL           'F'    // Server is full.
 #define NET_MSG_SERVER_HELLO          'H'    // You have connected
 #define NET_MSG_SERVER_GOODBYE        'G'    // You have disconnected
@@ -22,7 +16,6 @@
 
 // Time stamp
 // >> U32
-
 
 bool CheckTimestamp(u8 playerIndex, u32 timestamp)
 {
@@ -86,10 +79,10 @@ void ReceiveMessage(const char* message)
         return;
 
     //  printf("[SERVER] I have Disconnected.\n");
-      if (ME)
-      {
-        Player_DeleteMe();
-      }
+//      if (ME)
+//      {
+//        Player_DeleteMe();
+//      }
     }
     break;
     // 0 P              1

@@ -8,8 +8,10 @@
 Vec3f RotatePointXZ(Vec3f p, f32 yaw);
 f32 ConstrainAngle(f32 x);
 
-void Mesh_MakePlayer(Mesh* mesh);
+void Mesh_MakeRedPlayer(Mesh* mesh);
+void Mesh_MakeBluePlayer(Mesh* mesh);
 void Mesh_MakeBall(Mesh* mesh);
+void Mesh_MakeWheel(Mesh* mesh);
 
 void Game_Tick();
 
@@ -80,6 +82,8 @@ Vec3f TransformLocalPointToWorldSpaceXZ(Vec3f selfPosition, i32 selfRotation, Ve
 
 Vec3f TransformLocalPointToWorldSpaceXZRad(Vec3f selfPosition, f32 heading, Vec3f otherPosition);
 
+Vec3f TransformLocalPointToWorldSpaceXZRadOnly(f32 heading, f32 x, f32 z);
+
 void MakePid(Pid* pid, f32 p, f32 i, f32 d);
 void MakePidDefaults1(Pid* pid);
 f32 UpdatePid(Pid* pid, f32 error, f32 time);
@@ -89,14 +93,19 @@ inline f32 PidError(f32 target, f32 current)
   return target - current;
 }
 
-void Draw_Title();
-void Update_Scene();
+void Update_Title();
 void Start_SinglePlayer();
-void Tick_Singleplayer();
-void Draw_Singleplayer();
+void FixedUpdate_Singleplayer();
+void Update_SinglePlayer();
 void Start_Multiplayer();
-void Tick_Multiplayer();
-void Draw_Multiplayer();
+void FixedUpdate_Multiplayer();
+void Update_Multiplayer();
+
+void RecalculateOBB(Vec3f* centre, Vec3f* halfSize, f32 heading, ObbXZ* obb);
+
+bool OBBvsOBB(ObbXZ* obb1, ObbXZ* obb2, Vec3f* mtv);
+
+Vec3f OBBGetClosestPoint(ObbXZ* obb1, Vec3f point);
 
 #endif
 

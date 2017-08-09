@@ -3,26 +3,43 @@
 - [x] Make car mesh
 - [x] Camera movement
 - [x] Simple update server function (based on state of objects)
-- [ ] Controller for player object
-- [ ] Controller for networked object
+- [x] Controller for player object
+- [x] Controller for networked object
 - [x] Car physics (movement, accelerator, brake and steering)
 - [x] Ball physics (movement for now)
 - [x] Collisions
 - [x] Rotate camera around car with mouse/keys
-- [ ] Magnet power (3 second cooldown)
-- [ ] Punt power (push ball into goal type power, 5 second cooldown)
-- [ ] Spin car around really quickly to hit it. (3 second cooldown) - super hand brake turn - like a kick
-- [ ] AI (Single player)
+- [x] Magnet power (3 second cooldown)
+- [x] Punt power (push ball into goal type power, 5 second cooldown)
+- [x] Spin car around really quickly to hit it. (3 second cooldown) - super hand brake turn - like a kick
+- [x] AI (Single player)
 
-// Game Design
+Bug Fixes for Friday
+--------------------
 
-1. Car game
-2. 4-players
-3. Multiplayer
-4. AI in the game (maybe) (using PID controllers, maybe randomness)
-5. destruction - tyre have damage values and they break off.
-6. 3D
-7. Ball
-8. Goals
-9. Server
+- [x] Depth Rendering Bug
+- [x] Missing Wheel Meshes
+- [x] Collisions for car-car
+- [x] Timing fixes
+- [ ] Network accuracy lost
+- [ ] Manual/Readme screen
+- [ ] Secret demo mode - (button to activate on title)
+- [ ] 'GOAAAL' text when you score
+- [ ] Game Timer
+- [ ] Game Reset system
+- [x] Split screen two player
+- [x] Single player setup screen
+- [ ] Multiplayer setup screen (enter ip, etc.)
 
+If I can make it in time/v2
+---------------------------
+
+- [ ] - Revisit line drawing
+- [ ] - Bounce cars back on map edges
+- [ ] - Ball should spin
+- [ ] - Ring around ball
+- [ ] - Indicator where ball is
+- [ ] - Player names over cars
+- [x] - "HD" mode
+- [ ] - Configuration screen.
+- [ ] - Switching resoultions on the fly.

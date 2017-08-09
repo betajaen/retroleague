@@ -20,6 +20,7 @@ typedef struct { i32 x, y;                    } Vec2;
 typedef union  {
   struct { f32 x, y, z; };
   struct { f32 RIGHT, UP, FORWARD; };
+  f32 e[3];
  } Vec3f;
 
 typedef struct { f32 x, y, z, w;              } Vec4f;
@@ -37,7 +38,8 @@ typedef union  { f32 m[4][4]; f32 M[16]; Vec4f row[4];   } Mat44;
 
 typedef struct
 {
-  Vec3f v[3];
+  Vec4f v[3];
+  Vec4f n;
   u8    shader;
   u8    colour;
   u8    p0;
@@ -48,7 +50,7 @@ typedef struct
 { 
   Triangle* triangles;
   u16       nbTriangles;
-  Vec3f     min, max, centre, halfSize;
+  Vec3f     min, max, centre, size, halfSize;
   f32       squaredRadius, radius;
 } Mesh;
 
@@ -61,19 +63,47 @@ typedef struct Palette_t
 
 typedef struct
 {
+  struct {  
+    Vec4f v[3], normal, lightDir;
+    Mat44 point2World, vector2World, point2Screen;
+  } in;
+  struct {
+    Vec4f v[3], normal;
+    f32   lightDiff;
+  } out;
+} ShaderTriangleParams;
+
+typedef struct
+{
+  struct {
+    Vec2  p;
+    f32   lightDiff;
+    u8    triangleColour;
+  } in;
+  struct {
+    u8  colour;
+    f32 brightness;
+  } out;
+} ShaderFragmentParams;
+
+typedef void(*TriangleShader)(ShaderTriangleParams* params);
+typedef void(*FragmentShader)(ShaderFragmentParams* params);
+
+typedef struct
+{
 
   i32         screenX, screenY;
   u32         width, height, displayScale;
-  u32         updateMs, drawMs;
+  u32         fixedMs, drawMs;
   f32         time, fixedDeltaTime, deltaTime;
-  u32         frameCount;
+  u32         frameCount, fixedFrameCount;
   const char* title;
   bool        quit;
 
   struct
   {
     u32 nbTriangles, nbDrawCalls;
-    f32 fps;
+    f32 fps, fixedFps;
   } Stats;
 
   struct
@@ -124,6 +154,7 @@ typedef struct
   struct
   {
     void (*New)(Scene* scene);
+    void (*NewXywh)(Scene* scene, i32 x, i32 y, u32 w, u32 h);
     void (*Delete)(Scene* scene);
     void (*Render)(Scene* scene, Surface* surface);
     void (*Clear)(Scene* scene, u8 colour);
@@ -234,8 +265,11 @@ extern void $Draw();
 #define $Squared(X)             ((X) * (X))
 #define $Lerp(X, Y, T)          (X + T * (Y - X))
 
-f32 $WrapMax(f32 x, f32 max);
-f32 $WrapMinMax(f32 x, f32 min, f32 max);
+f32 $WrapMaxF(f32 x, f32 max);
+f32 $WrapMinMaxF(f32 x, f32 min, f32 max);
+i32 $WrapMax(i32 x, i32 max);
+i32 $WrapMinMax(i32 x, i32 min, i32 max);
+
 
 #define $PermaNew(TYPE)         ($Cast(TYPE*) $.Mem.PermaAllocator(NULL, sizeof(TYPE)))
 #define $PermaDelete(OBJ)       $Scope(($.Mem.PermaAllocator(OBJ, 0)); OBJ = NULL;)
@@ -283,8 +317,10 @@ inline Vec3f $Vec3_Mul(Vec3f a, Vec3f b) { return $Vec3_Xyz(a.x * b.x, a.y * b.y
 inline Vec3f $Vec3_Div(Vec3f a, Vec3f b) { return $Vec3_Xyz(a.x / b.x, a.y / b.y, a.z / b.z); }
 inline Vec3f $Vec3_MulS(Vec3f a, f32 s)  { return $Vec3_Xyz(a.x * s, a.y * s, a.z * s); }
 inline Vec3f $Vec3_DivS(Vec3f a, f32 s)  { return $Vec3_Xyz(a.x / s, a.y / s, a.z / s); }
+inline Vec3f $Vec3_Neg(Vec3f v)          { return $Vec3_Xyz(-v.x, -v.y, -v.z); }
 
 Vec3f $Vec3_Normalise(Vec3f v);
+Vec3f $Vec3_NormaliseXZ(Vec3f v);
 Vec4f $Vec4_Normalise3(Vec4f v);
 inline f32   $Vec3_Dot(Vec3f a, Vec3f b)  { return a.x * b.x + a.y * b.y + a.z * b.z;          }
 inline f32   $Vec3_DotXZ(Vec3f a, Vec3f b)  { return a.x * b.x + a.z * b.z;          }
@@ -313,7 +349,9 @@ inline f32 $Vec3_CrossXZ(Vec3f a,Vec3f b) {
     return (a.x*b.z) - (a.z*b.x);
     }
 f32   $Vec3_Length(Vec3f v);
-f32   $Vec3_Length2(Vec3f v);
+f32   $Vec3_LengthXZ(Vec3f v);
+f32   $Vec3_LengthSq(Vec3f v);
+f32   $Vec3_LengthSqXZ(Vec3f v);
 f32   $Vec4_Length3(Vec4f v);
 
 #define $Vec4_Set(V, X,Y,Z,W)   $Scope({ (V)->x  = (X); (V)->y  = (Y); (V)->z  = (Z);  (V)->w  = (W);})
@@ -386,8 +424,8 @@ f32 $Rad_Wrap_NegHalfPi_PosHalfPi(f32 v);
 
 #define $Array_Push(A, V)\
     $Scope({                                          \
-      if ($Array_Capacity(A) < ($Array_Size(A) + 1))  \
-        $Array_Grow(A, 0);                      \
+      if ($Array_Capacity(A) <= ($Array_Size(A) + 1))  \
+        $Array_Grow(A, 0);                            \
       (A)[$Array_Size(A)] = (ITEM);                   \
       $Array_Header(A)->size++;                       \
     });
@@ -400,9 +438,9 @@ f32 $Rad_Wrap_NegHalfPi_PosHalfPi(f32 v);
     
 #define $Array_PushAndFillOut(A, OUT_PTR)\
     $Scope({                                          \
-      if ($Array_Capacity(A) < ($Array_Size(A) + 1))  \
+      if ($Array_Capacity(A) <= ($Array_Size(A) + 1))  \
       {\
-        $Array_Grow(A, 0);                      \
+        $Array_Grow(A, 0);                            \
       }\
       OUT_PTR = &((A)[$Array_Size(A)]);               \
       $Array_Header(A)->size++;                       \

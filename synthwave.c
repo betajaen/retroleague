@@ -63,7 +63,7 @@ typedef struct
 
 typedef struct
 {
-  i32  width, height;
+  i32  x, y, width, height;
   f32  halfWidth, halfHeight;
   u8*  colour;
   f32* depth;
@@ -166,11 +166,8 @@ typedef struct
 {
   SDL_Window*           window;
   SDL_Renderer*         renderer;
-  u32                   deltaTimeMs, accumulator;
-  $$Scene*              scenes;
-  $$Canvas*             canvases;
-  $$Bitmap*             bitmaps;
-  $$Surface*            surfaces;
+  u32                   fpsLastTime, fpsCurrent, fpsFrames, deltaTimeMs, accumulator;
+  u32                   fixedLastTime, fixedCurrent, fixedFrames;
   $$Control*            controls;
 #if $AUDIO_ENABLED == 1
   $$Sound*              sounds;
@@ -427,9 +424,9 @@ void Canvas_Render(Canvas* canvas, Surface* surface)
   if (c->background != 0)
   {
     Colour col = $$.palette->colours[c->background];
-    SDL_SetRenderDrawColor($$.renderer, col.r, col.g, col.b, 0x00);
+    SDL_SetRenderDrawColor($$.renderer, col.r, col.g, col.b, 0xFF);
     SDL_RenderClear($$.renderer);
-    SDL_SetRenderDrawColor($$.renderer, 0xFF, 0xFF, 0xFF, 0x00);
+    SDL_SetRenderDrawColor($$.renderer, 0xFF, 0xFF, 0xFF, 0xFF);
   }
   
   SDL_SetRenderDrawBlendMode($$.renderer, SDL_BLENDMODE_BLEND);
@@ -837,24 +834,46 @@ void Mesh_Finalise(Mesh* mesh)
     Triangle* triangle = &mesh->triangles[ii];
     for(u32 jj=0;jj < 3;jj++)
     {
-      Vec3f v = triangle->v[jj];
+      triangle->v[jj].w = 1.0f;
+
+      Vec4f v = triangle->v[jj];
       min.x = $Min(min.x, v.x);
       min.y = $Min(min.y, v.y);
       min.z = $Min(min.z, v.z);
       max.x = $Max(max.x, v.x);
       max.y = $Max(max.y, v.y);
       max.z = $Max(max.z, v.z);
+
+      Vec3f nu;
+      nu.x = triangle->v[1].x - triangle->v[0].x;
+      nu.y = triangle->v[1].y - triangle->v[0].y;
+      nu.z = triangle->v[1].z - triangle->v[0].z;
+
+      Vec3f nv;
+      nv.x = triangle->v[2].x - triangle->v[1].x;
+      nv.y = triangle->v[2].y - triangle->v[1].y;
+      nv.z = triangle->v[2].z - triangle->v[1].z;
+
+      Vec4f normal;
+      normal.x = nu.y * nv.z - nu.z * nv.y;
+      normal.y = nu.z * nv.x - nu.x * nv.z;
+      normal.z = nu.x * nv.y - nu.y * nv.x;
+      normal.w = 1.0f;
+      normal = $Vec4_Normalise3(normal);
+
+      triangle->n = normal;
     }
   }
   
   mesh->min = min;
   mesh->max = max;
-  extents = $Vec3_Sub(mesh->max, mesh->min);
-  mesh->centre = extents;
-  mesh->halfSize = $Vec3_MulS($Vec3_Sub(mesh->max, mesh->min), 0.5f);
+  extents = $Vec3_Sub(mesh->min, mesh->max);
+  mesh->centre = $Vec3_MulS($Vec3_Add(mesh->min, mesh->max), 0.5f);
+  mesh->size = $Vec3_Sub(mesh->max, mesh->min);
+  mesh->halfSize = $Vec3_MulS(mesh->size, 0.5f);
 
   // Radius
-  mesh->squaredRadius = $Vec3_Length2(extents);
+  mesh->squaredRadius = $Vec3_LengthSq(extents);
   mesh->radius        = sqrtf(mesh->squaredRadius);
 }
 
@@ -869,7 +888,7 @@ void Mesh_Finalise(Mesh* mesh)
 void $$Mat44_ProjectionMatrix(Mat44* m, u32 w, u32 h, f32 fovDeg, f32 far, f32 near);
 void $$Mat44_SceneMatrix(Mat44* m, u32 w, u32 h);
 
-void Scene_New(Scene* scene)
+void Scene_NewXywh(Scene* scene, i32 x, i32 y, u32 w, u32 h)
 {
   $Ensure(scene);
 
@@ -880,10 +899,12 @@ void Scene_New(Scene* scene)
   $$FrameBuffer* fb = $PermaNew($$FrameBuffer);
   s->frameBuffer = fb;
 
-  fb->width = $.width;
-  fb->height = $.height;
-  fb->halfWidth = $.width * 0.5f;
-  fb->halfHeight = $.height * 0.5f;
+  fb->x = x;
+  fb->y = y;
+  fb->width = w;
+  fb->height = h;
+  fb->halfWidth = w * 0.5f;
+  fb->halfHeight = h * 0.5f;
   fb->colourMem = $.Mem.PermaAllocator(NULL, sizeof(u8) *  ((fb->width * 2) + $$FrameBuffer_Size(fb)));
   fb->depthMem  = $.Mem.PermaAllocator(NULL, sizeof(f32) * ((fb->width * 2) + $$FrameBuffer_Size(fb)));
   fb->brightnessMem  = $.Mem.PermaAllocator(NULL, sizeof(f32) * ((fb->width * 2) + $$FrameBuffer_Size(fb)));
@@ -895,21 +916,31 @@ void Scene_New(Scene* scene)
     $$.renderer,
     SDL_PIXELFORMAT_BGR888,
     SDL_TEXTUREACCESS_STREAMING,
-    $.width, $.height
+    w, h
   );
   
-  $$Mat44_ProjectionMatrix(&s->projectionMatrix, fb->width, fb->height, 80.0f, 1.0f, 300.0f);
+  $$Mat44_ProjectionMatrix(&s->projectionMatrix, fb->width, fb->height, 90.0f, 1.0f, 300.0f);
   $$Mat44_SceneMatrix(&s->screenMatrix, fb->width, fb->height);
  
   s->cameraOutOfDate = true;
 }
 
+void Scene_New(Scene* scene)
+{
+  Scene_NewXywh(scene, 0, 0, $.width, $.height);
+}
+
 void Scene_Delete(Scene* scene)
 {
-  $EnsureOpaque(scene);
+  $Ensure(scene);
+
+  if (scene->opaque == 0)
+    return;
+
   $$Scene* s = $$CastOpaque($$Scene, scene);
 
   $Array_Delete(s->drawCmds);
+  $PermaDelete(s->frameBuffer->brightnessMem);
   $PermaDelete(s->frameBuffer->colourMem);
   $PermaDelete(s->frameBuffer->depthMem);
   $PermaDelete(s->frameBuffer);
@@ -980,81 +1011,42 @@ void $$Mat44_SceneMatrix(Mat44* m, u32 w, u32 h)
 typedef struct
 {
   i32 x, y;
-  f32 z, w;
-} RVec;
+} RasterVec;
 
-inline void $$Vec4_XForm(RVec* dst, Vec4f* m)
+void $$Shader_FixedTri(ShaderTriangleParams* p)
 {
-  dst->x = (i32) (m->x + 0.5f);
-  dst->y = (i32) (m->y + 0.5f);
-  dst->z = m->z;
-  dst->w = m->w;
+  $Mat44_MultiplyVec4(&p->out.v[0],     &p->in.point2Screen, &p->in.v[0]);
+  $Mat44_MultiplyVec4(&p->out.v[1],     &p->in.point2Screen, &p->in.v[1]);
+  $Mat44_MultiplyVec4(&p->out.v[2],     &p->in.point2Screen, &p->in.v[2]);
+  $Mat44_MultiplyVec4(&p->out.normal, &p->in.vector2World, &p->in.normal);
+
+  p->out.lightDiff = fabsf($Vec3_Dot4(p->out.normal, p->in.lightDir));
 }
 
-#define $$Fwd_FragmentShader(NAME)\
-bool $$Fragment_Shader_##NAME($$FrameBuffer* fb,  Vec4f* v0, Vec4f* v1, Vec4f* v2, u8 c, Vec4f* normal, Vec4f* lightDir)
-
-#define $$Make_FragmentShader(NAME, ...)\
-bool $$Fragment_Shader_##NAME($$FrameBuffer* fb,  Vec4f* v0, Vec4f* v1, Vec4f* v2, u8 c, Vec4f* normal, Vec4f* lightDir) \
-{\
-  RVec r[3]; $$Vec4_XForm(&r[0], v0); $$Vec4_XForm(&r[1], v1); $$Vec4_XForm(&r[2], v2); \
-  i32 A0 = r[1].y - r[2].y; /* 0 sized triangle rejection*/ \
-  i32 B0 = r[2].x - r[1].x;\
-  i32 C0 = r[1].x * r[2].y - r[2].x * r[1].y;\
-  i32 triArea = A0 * r[0].x + B0 * r[0].y + C0;\
-  if (triArea <= 0) return false;\
-  i32 minX = $Max($Min3(r[0].x, r[1].x, r[2].x), 0) & (i32) 0xFFFFFFFE,\
-      maxX = $Min($Max3(r[0].x, r[1].x, r[2].x), (fb->width - 1)),\
-      minY = $Max($Min3(r[0].y, r[1].y, r[2].y), 0) & (i32) 0xFFFFFFFE,\
-      maxY = $Min($Max3(r[0].y, r[1].y, r[2].y), (fb->height - 1));\
-  if(maxX < minX || maxY < minY) return false;\
-  i32 A1 = r[2].y - r[0].y, A2 = r[0].y - r[1].y,\
-      B1 = r[0].x - r[2].x, B2 = r[1].x - r[0].x,\
-      C1 = r[2].x * r[0].y - r[0].x * r[2].y, C2 = r[0].x * r[1].y - r[1].x * r[0].y;\
-  f32 oneOverTriArea = (1.0f/ $Cast(f32)(triArea));\
-  r[1].z = (r[1].z - r[0].z) * oneOverTriArea;\
-  r[2].z = (r[2].z - r[0].z) * oneOverTriArea;\
-  f32 zx = A1 * r[1].z + A2 * r[2].z;\
-  Vec2 p = { .x = minX, .y = minY };\
-  f32 diff = $Clamp(0.1f + $Vec3_Dot4(*normal, *lightDir), 0.0f, 1.0f);\
-  i32 w0Row = (A0 * p.x) + (B0 * p.y) + C0,\
-      w1Row = (A1 * p.x) + (B1 * p.y) + C1,\
-      w2Row = (A2 * p.x) + (B2 * p.y) + C2;\
-  for(p.y = minY; p.y <= maxY; p.y++) {\
-    i32 w0 = w0Row, w1 = w1Row, w2 = w2Row;\
-    f32 depth = r[0].z + r[1].z * w1 + r[2].z * w2;\
-    for(p.x = minX; p.x <= maxX;p.x++) {\
-        if ((w0 | w1 | w2) >= 0) {\
-          f32 prevDepth = $$FrameBuffer_FetchDepth(fb, p.x, p.y);\
-          if (depth < prevDepth) {\
-            __VA_ARGS__;\
-            $$FrameBuffer_StoreDepth(fb, p.x, p.y, depth);\
-            $$FrameBuffer_StoreBrightness(fb, p.x, p.y, diff);\
-          }\
-      }\
-      w0 += A0; w1 += A1; w2 += A2; depth += zx; }\
-    w0Row += B0; w1Row += B1;  w2Row += B2;\
-  }\
-  return true;\
+void $$Shader_FixedFrag(ShaderFragmentParams* p)
+{
+  p->out.colour     = p->in.triangleColour;
+  p->out.brightness = $Clamp(0.25f + p->in.lightDiff, 0.0f, 1.0f);
 }
 
-#define $$FRAGMENT_SET_COLOUR(C)  $$FrameBuffer_StoreColour(fb, p.x, p.y, C);
-
-
-
-bool $$Fragment_Shader_InternalMetric($$FrameBuffer* fb,  Vec4f* v0, Vec4f* v1, Vec4f* v2, u8 c, Vec4f* normal, Vec4f* lightDir)
+bool $$Scene_Rasterize_Triangle($$FrameBuffer* fb, ShaderTriangleParams* triParams, u8 attrTriangleColour)
 {
-  RVec r[3];
-  $$Vec4_XForm(&r[0], v0);
-  $$Vec4_XForm(&r[1], v1);
-  $$Vec4_XForm(&r[2], v2);
+  RasterVec r[3];
+  f32 z[3];
 
+  for(u32 ii=0;ii < 3;ii++)
+  {
+    r[ii].x = (i32) (triParams->out.v[ii].x + 0.5f);
+    r[ii].y = (i32) (triParams->out.v[ii].y + 0.5f);
+    z[ii]   = (triParams->out.v[ii].z);
+  }
+  
   // Reject 0 sized triangles
   i32 A0 = r[1].y - r[2].y;
   i32 B0 = r[2].x - r[1].x;
   i32 C0 = r[1].x * r[2].y - r[2].x * r[1].y;
   i32 triArea = A0 * r[0].x + B0 * r[0].y + C0;
-
+  
   if (triArea <= 0)
     return false;
   
@@ -1063,6 +1055,7 @@ bool $$Fragment_Shader_InternalMetric($$FrameBuffer* fb,  Vec4f* v0, Vec4f* v1, 
   i32 maxX = $Min($Max3(r[0].x, r[1].x, r[2].x), (fb->width - 1));
   i32 minY = $Max($Min3(r[0].y, r[1].y, r[2].y), 0) & (i32) 0xFFFFFFFE;
   i32 maxY = $Min($Max3(r[0].y, r[1].y, r[2].y), (fb->height - 1));
+  
   if(maxX < minX || maxY < minY)
     return false;
   
@@ -1075,37 +1068,41 @@ bool $$Fragment_Shader_InternalMetric($$FrameBuffer* fb,  Vec4f* v0, Vec4f* v1, 
   
   f32 oneOverTriArea = (1.0f/ $Cast(f32)(triArea));
   
-  r[1].z = (r[1].z - r[0].z) * oneOverTriArea;
-  r[2].z = (r[2].z - r[0].z) * oneOverTriArea;
+  z[1] = (z[1] - z[0]) * oneOverTriArea;
+  z[2] = (z[2] - z[0]) * oneOverTriArea;
   
-  f32 zx = A1 * r[1].z + A2 * r[2].z;
+  f32 zx = A1 * z[1] + A2 * z[2];
   
-  Vec2 p = { .x = minX, .y = minY };
+  ShaderFragmentParams params;
+  params.in.p.x = minX;
+  params.in.p.y = minY;
+  params.in.lightDiff = triParams->out.lightDiff;
+  params.in.triangleColour = attrTriangleColour;
 
-  f32 diff = $Clamp(0.1f + $Vec3_Dot4(*normal, *lightDir), 0.0f, 1.0f);
+  i32 w0Row = (A0 * params.in.p.x) + (B0 * params.in.p.y) + C0;
+  i32 w1Row = (A1 * params.in.p.x) + (B1 * params.in.p.y) + C1;
+  i32 w2Row = (A2 * params.in.p.x) + (B2 * params.in.p.y) + C2;
 
-  i32 w0Row = (A0 * p.x) + (B0 * p.y) + C0;
-  i32 w1Row = (A1 * p.x) + (B1 * p.y) + C1;
-  i32 w2Row = (A2 * p.x) + (B2 * p.y) + C2;
-
-  for(p.y = minY; p.y <= maxY; p.y++)
+  for(params.in.p.y = minY; params.in.p.y <= maxY; params.in.p.y++)
   {
     i32 w0 = w0Row;
     i32 w1 = w1Row;
     i32 w2 = w2Row;
 
-    f32 depth = r[0].z + r[1].z * w1 + r[2].z * w2;
+    f32 depth = z[0] + z[1] * w1 + z[2] * w2;
 
-    for(p.x = minX; p.x <= maxX;p.x++)
+    for(params.in.p.x = minX; params.in.p.x <= maxX;params.in.p.x++)
     {
       if ((w0 | w1 | w2) >= 0)
       {
-        f32 prevDepth = $$FrameBuffer_FetchDepth(fb, p.x, p.y);
-        if (depth < prevDepth)
+        f32 prevDepth = $$FrameBuffer_FetchDepth(fb, params.in.p.x, params.in.p.y);
+        if (depth > prevDepth)
         {
-          $$FrameBuffer_StoreColour(fb, p.x, p.y, c);
-          $$FrameBuffer_StoreDepth(fb, p.x, p.y, depth);
-          $$FrameBuffer_StoreBrightness(fb, p.x, p.y, diff);
+          $$Shader_FixedFrag(&params);
+          
+          $$FrameBuffer_StoreDepth(fb,      params.in.p.x, params.in.p.y, depth);
+          $$FrameBuffer_StoreColour(fb,     params.in.p.x, params.in.p.y, params.out.colour);
+          $$FrameBuffer_StoreBrightness(fb, params.in.p.x, params.in.p.y, params.out.brightness);
         }
       }
 
@@ -1123,117 +1120,48 @@ bool $$Fragment_Shader_InternalMetric($$FrameBuffer* fb,  Vec4f* v0, Vec4f* v1, 
   return true;
 }
 
-typedef bool (*$$FragmentShader)($$FrameBuffer* fb,  Vec4f* v0, Vec4f* v1, Vec4f* v2, u8 c, Vec4f* normal, Vec4f* lightDir);
+inline bool ScreenCoords(Vec4f* v)
+{
+  f32 w = v->w, z = v->z;
 
-$$Fwd_FragmentShader(Standard);
-$$Fwd_FragmentShader(Shadow);
-$$Fwd_FragmentShader(Red);
-$$Fwd_FragmentShader(Blue);
-$$Fwd_FragmentShader(Green);
+  v->x = v->x / v->w;
+  v->y = v->y / v->w;
+  v->z = v->z / v->w;
+  v->w = 1.0f;
 
-static $$FragmentShader $$FRAGMENT_SHADERS[5] = {
-  $$Fragment_Shader_Standard,
-  $$Fragment_Shader_Shadow,
-  $$Fragment_Shader_Red,
-  $$Fragment_Shader_Blue,
-  $$Fragment_Shader_Green,
-};
-
+  return z > w;
+}
 
 void $$Scene_DrawModel($$Scene* scene, $$FrameBuffer* fb, Mat44* vps, Mesh* mesh, Vec3f position, Rot3i rotation, u8 shader, Vec4f* lightDir)
 {
-  Vec3f u[3]; Vec4f v[3], wv[3];
-  Mat44 m, mvps;
 
-  // Model
-  $Mat44_Identity(&m);
-  $Mat44_RotMatrixZXY(&m, rotation);
-  $Mat44_MultiplyTransform(&m, position);
+  ShaderTriangleParams triParams;
+  triParams.in.lightDir = *lightDir;
 
-  
-
-  // VPS
-  $Mat44_Multiply(&mvps, vps, &m);
+  $Mat44_Identity(&triParams.in.point2World);
+  $Mat44_RotMatrixZXY(&triParams.in.point2World, rotation);
+  triParams.in.vector2World = triParams.in.point2World;
+  $Mat44_MultiplyTransform(&triParams.in.point2World, position);
+  $Mat44_Multiply(&triParams.in.point2Screen, vps, &triParams.in.point2World);
   
   for(u32 ii=0;ii < mesh->nbTriangles;ii++)
   {
     Triangle* triangle = &mesh->triangles[ii];
-    bool render = true;
-    for(u32 jj=0;jj < 3;jj++)
-    {
-      u[jj] = triangle->v[jj];
-      
-      Vec4f p;
-      p.x = u[jj].x;
-      p.y = u[jj].y;
-      p.z = u[jj].z;
-      p.w = 1.0f;
-      
-      $Mat44_MultiplyVec4(&wv[jj], &m, &p);
-      $Mat44_MultiplyVec4(&v[jj], &mvps, &p);
-      
-      if (v[jj].z <= v[jj].w)
-      {
-        v[jj].x = v[jj].x / v[jj].w;
-        v[jj].y = v[jj].y / v[jj].w;
 
-        v[jj].z = v[jj].z / v[jj].w;
-        v[jj].w = v[jj].w;
-      }
-      else
-      {
-        render = false;
-        break;
-      }
-    }
-    
-    if(render && (v[0].w > 0.0f && v[1].w > 0.0f && v[2].w > 0.0f))
-    {
-    #if 1
-      Vec3f nu;
-      nu.x = wv[1].x - wv[0].x;
-      nu.y = wv[1].y - wv[0].y;
-      nu.z = wv[1].z - wv[0].z;
+    triParams.in.v[0] = triangle->v[0];
+    triParams.in.v[1] = triangle->v[1];
+    triParams.in.v[2] = triangle->v[2];
+    triParams.in.normal = triangle->n;
 
-      Vec3f nv;
-      nv.x = wv[2].x - wv[1].x;
-      nv.y = wv[2].y - wv[1].y;
-      nv.z = wv[2].z - wv[1].z;
+    $$Shader_FixedTri(&triParams);
 
-      Vec4f normal;
-      normal.x = nu.y * nv.z - nu.z * nv.y;
-      normal.y = nu.z * nv.x - nu.x * nv.z;
-      normal.z = nu.x * nv.y - nu.y * nv.x;
-      normal.w = 1.0f;
-      normal = $Vec4_Normalise3(normal);
-      if ($$FRAGMENT_SHADERS[shader](fb, &v[0], &v[1], &v[2], triangle->colour, &normal, lightDir))
-      {
-        $.Stats.nbTriangles++;
-      }
-    #else
-      Vec3f nu;
-      nu.x = wv[1].x - wv[0].x;
-      nu.y = wv[1].y - wv[0].y;
-      nu.z = wv[1].z - wv[0].z;
+    if (ScreenCoords(&triParams.out.v[0]) || 
+        ScreenCoords(&triParams.out.v[1]) || 
+        ScreenCoords(&triParams.out.v[2])) 
+      continue;
 
-      Vec3f nv;
-      nv.x = wv[2].x - wv[1].x;
-      nv.y = wv[2].y - wv[1].y;
-      nv.z = wv[2].z - wv[1].z;
-
-      Vec4f normal;
-      normal.x = nu.y * nv.z - nu.z * nv.y;
-      normal.y = nu.z * nv.x - nu.x * nv.z;
-      normal.z = nu.x * nv.y - nu.y * nv.x;
-      normal.w = 1.0f;
-      normal = $Vec4_Normalise3(normal);
-
-      if ($$Fragment_Shader_InternalMetric(fb, &v[0], &v[1], &v[2], triangle->colour, &normal, lightDir))
-      {
-        $.Stats.nbTriangles++;
-      }
-    #endif
-    }
+    $$Scene_Rasterize_Triangle(fb, &triParams, triangle->colour);
+    $.Stats.nbTriangles++;
   }
 }
 
@@ -1271,7 +1199,6 @@ void $$Scene_DrawSkybox($$Scene* scene, $$FrameBuffer* fb, f32 y, u8 sky, u8 gro
 
 void $$Scene_DrawGroundDot($$Scene* scene, $$FrameBuffer* fb, Mat44* vpsMatrix, f32 x, f32 z, u8 colour)
 {
-  
   Vec4f p;
   p.x = x;
   p.y = 0.0f;
@@ -1287,8 +1214,9 @@ void $$Scene_DrawGroundDot($$Scene* scene, $$FrameBuffer* fb, Mat44* vpsMatrix, 
     p1.x = p1.x / p1.w;
     p1.y = p1.y / p1.w;
     
-    RVec r;
-    $$Vec4_XForm(&r, &p1);
+    RasterVec r;
+    r.x = (i32) (p1.x + 0.5f);
+    r.y = (i32) (p1.y + 0.5f);
 
     // Reject triangle if not on screen
     i32 minX = $Max(r.x, 0) & (i32) 0xFFFFFFFE;
@@ -1302,62 +1230,10 @@ void $$Scene_DrawGroundDot($$Scene* scene, $$FrameBuffer* fb, Mat44* vpsMatrix, 
   }
 }
 
-void $$Scene_DrawGroundLine($$Scene* scene, $$FrameBuffer* fb, Mat44* vpsMatrix, f32 x0, f32 z0, f32 x1, f32 z1, u8 colour)
+void $$Scene_DrawGroundLine($$Scene* scene, $$FrameBuffer* fb, Mat44* vpsMatrix, f32 vx0, f32 vz0, f32 vx1, f32 vz1, u8 colour)
 {
   return;
-
-  Vec4f u[2];
-  u[0].x = x0;
-  u[0].y = 0.0f;
-  u[0].z = z0;
-  u[0].w = 1.0f;
-
-  u[1].x = x1;
-  u[1].y = 0.0f;
-  u[1].z = z1;
-  u[1].w = 1.0f;
-
-  Vec4f v[2];
-
-  $Mat44_MultiplyVec4(&v[0], vpsMatrix, &u[0]);
-  $Mat44_MultiplyVec4(&v[1], vpsMatrix, &u[1]);
-  
-  if ( (v[0].z <= v[0].w) && (v[1].z <= v[1].w))
-  {
-    v[0].x = v[0].x / v[0].w;
-    v[0].y = v[0].y / v[0].w;
-    v[1].x = v[1].x / v[1].w;
-    v[1].y = v[1].y / v[1].w;
-    
-    RVec r[2];
-    $$Vec4_XForm(&r[0], &v[0]);
-    $$Vec4_XForm(&r[1], &v[1]);
-    
-    i32 minX = $Max($Min(r[0].x, r[1].x), 0) & (i32) 0xFFFFFFFE;
-    i32 maxX = $Min($Max(r[0].x, r[1].x), (fb->width - 1));
-    i32 minY = $Max($Min(r[0].y, r[1].y), 0) & (i32) 0xFFFFFFFE;
-    i32 maxY = $Min($Max(r[0].y, r[1].y), (fb->height - 1));
-    if(maxX < minX || maxY < minY)
-      return;
-
-    $$FrameBuffer_StoreColour(fb, minX, minY, colour);
-    // $$FrameBuffer_StoreColour(fb, maxX, maxY, colour);
-  int dx = abs(maxX-minX), sx = minX<maxX ? 1 : -1;
-  int dy = abs(maxY-minY), sy = minY<maxY ? 1 : -1; 
-  int err = (dx>dy ? dx : -dy)/2, e2;
- 
-  for(;;){
-    $$FrameBuffer_StoreColour(fb, minX,minY, colour);
-    if (minX==maxX && minY==maxY) break;
-    e2 = err;
-    if (e2 >-dx) { err -= dy; minX += sx; }
-    if (e2 < dy) { err += dx; minY += sy; }
-  }
-
-  }
 }
-
-#define $$RENDER_TYPE 0
 
 void Scene_Render(Scene* scene, Surface* surface)
 {
@@ -1367,12 +1243,12 @@ void Scene_Render(Scene* scene, Surface* surface)
   $$FrameBuffer* fb = s->frameBuffer;
 
   // Clear colour and depth bfufers
-  memset(fb->colour, 0, sizeof(u8)  * $$FrameBuffer_Size(fb));
+  memset(fb->colour, s->background, sizeof(u8)  * $$FrameBuffer_Size(fb));
   //memset(fb->depth,  0, sizeof(f32) * $$FrameBuffer_Size(fb));
   i32 wh = $$FrameBuffer_Size(fb);
   for(i32 i=0;i < wh;i++)
   {
-    fb->depth[i] = 1.0f;
+    fb->depth[i] = 0.0f;
     fb->brightness[i] = 1.0f;
   }
 
@@ -1455,6 +1331,8 @@ void Scene_Render(Scene* scene, Surface* surface)
   Palette* palette = $$.palette;
   
   SDL_LockTexture(fb->texture, NULL, (void*) &pixels, &pixelPitch);
+  
+#define $$RENDER_TYPE 0
 
   for(u32 i=0, j=0;i < limit;i++,j+=4 /* RGBA for some reason */)
   {
@@ -1480,8 +1358,14 @@ void Scene_Render(Scene* scene, Surface* surface)
   
   SDL_UnlockTexture(fb->texture);
   
+  SDL_Rect dst;
+  dst.x = fb->x;
+  dst.y = fb->y;
+  dst.w = fb->width;
+  dst.h = fb->height;
+
   SDL_SetRenderTarget($$.renderer, g->texture);
-  SDL_RenderCopy($$.renderer, fb->texture, NULL, NULL);
+  SDL_RenderCopy($$.renderer, fb->texture, NULL, &dst);
   SDL_SetRenderTarget($$.renderer, NULL);
 
   $Array_Clear(s->drawCmds);
@@ -1493,6 +1377,7 @@ void Scene_Clear(Scene* scene, u8 colour)
   $$Scene* s = $$CastOpaque($$Scene, scene);
   
   $Array_Clear(s->drawCmds);
+  s->background = colour;
 }
 
 void Scene_SetPovLookAt(Scene* scene, Vec3f position, Vec3f target)
@@ -1956,7 +1841,7 @@ bool Timer_IsPaused(Timer* timer)
 void Input_BindControl(u32 control, i32 key)
 {
   $$Control* c;
-  $Array_PushAndFillOut($$.controls, c); 
+  $Array_PushAndFillOut($$.controls, c);
   c->key       = key;
   c->control   = control;
   c->state     = 0;
@@ -1999,15 +1884,27 @@ bool Input_ControlReleased(u32 control)
   return false;
 }
 
-f32 $WrapMax(f32 x, f32 max)
+i32 $WrapMax(i32 x, i32 max)
+{
+  /* integer math: `(max + x % max) % max` */
+  return (max + (x % max)) % max;
+}
+
+i32 $WrapMinMax(i32 x, i32 min, i32 max)
+{
+  return min + $WrapMax(x - min, max - min);
+}
+
+
+f32 $WrapMaxF(f32 x, f32 max)
 {
   /* integer math: `(max + x % max) % max` */
   return fmodf(max + fmodf(x, max), max);
 }
 
-f32 $WrapMinMax(f32 x, f32 min, f32 max)
+f32 $WrapMinMaxF(f32 x, f32 min, f32 max)
 {
-  return min + $WrapMax(x - min, max - min);
+  return min + $WrapMaxF(x - min, max - min);
 }
 
 void $Vec3_Transform(Vec3f* v, Rot3i* b)
@@ -2362,6 +2259,20 @@ Vec3f $Vec3_Normalise(Vec3f v)
   return v;
 }
 
+Vec3f $Vec3_NormaliseXZ(Vec3f v)
+{
+  f32 length = $Vec3_LengthXZ(v);
+  
+  if (length != 0.0f)
+  {
+    f32 r = 1.0f / length;
+    v.x *= r;
+    v.y = 0;
+    v.z *= r;
+  }
+  
+  return v;
+}
 Vec4f $Vec4_Normalise3(Vec4f v)
 {
   f32 length = $Vec4_Length3(v);
@@ -2388,12 +2299,22 @@ Vec3f $Vec3_Cross(Vec3f a, Vec3f b)
 
 f32   $Vec3_Length(Vec3f v)
 {
-  return sqrtf($Vec3_Length2(v));
+  return sqrtf($Vec3_LengthSq(v));
 }
 
-f32   $Vec3_Length2(Vec3f v)
+f32   $Vec3_LengthXZ(Vec3f v)
+{
+  return sqrtf($Vec3_LengthSq(v));
+}
+
+f32   $Vec3_LengthSq(Vec3f v)
 {
   return $Vec3_Dot(v, v);
+}
+
+f32   $Vec3_LengthSqXZ(Vec3f v)
+{
+  return $Vec3_DotXZ(v, v);
 }
 
 f32   $Vec4_Length3(Vec4f v)
@@ -2446,12 +2367,12 @@ f32 $Rad_Lerp(f32 x, f32 y, f32 t)
 
 f32 $Rad_Wrap_0_Pi(f32 v)
 {
-  return $WrapMax(v, $PI);
+  return $WrapMaxF(v, $PI);
 }
 
 f32 $Rad_Wrap_NegHalfPi_PosHalfPi(f32 v)
 {
-  return $WrapMinMax(v, -$PI*0.5f, $PI*0.5f);
+  return $WrapMinMaxF(v, -$PI*0.5f, $PI*0.5f);
 }
 
 void $$Frustrum_CreateProjection(Vec4f* f, f32 fovy, f32 aspect, f32 nearClip, f32 farClip)
@@ -2662,10 +2583,12 @@ void $$SetupApi()
   $.fixedDeltaTime                  = 0;
   $.time                            = 0;
   $.drawMs                          = 8;
-  $.updateMs                        = 16;
+  $.fixedMs                         = 16;
   $.title                           = "Synthwave";
   $.width                           = 320;
   $.height                          = 200;
+  $.screenX                         = 0x80000000;
+  $.screenY                         = 0x80000000;
   $.displayScale                    = 4;
   $.quit                            = false;
   $.Palette.Bind                    = Palette_Bind;
@@ -2696,6 +2619,7 @@ void $$SetupApi()
   $.Canvas.DrawTextF                = Canvas_DrawTextF;
   $.Mesh.Finalise                   = Mesh_Finalise;
   $.Scene.New                       = Scene_New;
+  $.Scene.NewXywh                   = Scene_NewXywh;
   $.Scene.Delete                    = Scene_Delete;
   $.Scene.Render                    = Scene_Render;
   $.Scene.Clear                     = Scene_Clear;
@@ -2736,10 +2660,13 @@ void $$SetupApi()
 
 static void $$Frame()
 {
-    SDL_Event event;
-    $.frameCount++;
-    $.Timer.Start(&$$.frameLimitTimer);
     $$.deltaTimeMs = $.Timer.Ticks(&$$.deltaTimer);
+    $.Timer.Start(&$$.deltaTimer);
+    $.frameCount++;
+    $$.fpsFrames++;
+
+
+    SDL_Event event;
 
     while (SDL_PollEvent(&event))
     {
@@ -2769,25 +2696,30 @@ static void $$Frame()
       c->state |= (state[key] != 0) ? 1 : 0;
     }
     
-    $.Stats.fps = (f32) ($.frameCount) / (($.Timer.Ticks(&$$.fpsTimer) / 1000.0f));
-    if ($.Stats.fps > 200000.0f)
-    {
-      $.Stats.fps = 0.0f;
-    }
-
     u32 frameTime = (u32) ($$.deltaTimeMs);
     if (frameTime > 250)
       frameTime = 250;
     
     $$.accumulator += frameTime;
-    while($$.accumulator >= $.updateMs)
+    while($$.accumulator >= $.fixedMs)
     {
-      $.fixedDeltaTime = 1.0f / $.updateMs;
+      $.fixedDeltaTime = $.fixedMs / 1000.0f;
+      $$.fixedFrames++;
+      $.fixedFrameCount++;
+
+      if ($$.fixedLastTime < SDL_GetTicks() - 1000)
+      {
+        $$.fixedLastTime = SDL_GetTicks();
+        $.Stats.fixedFps = $$.fixedFrames;
+        $$.fixedFrames = 0;
+      }
+      
       $Update();
-      $$.accumulator -= $.updateMs;
+
+      $$.accumulator -= $.fixedMs;
     }
 
-    $.deltaTime = 1.0f / $$.deltaTimeMs;
+    $.deltaTime = $$.deltaTimeMs / 1000.0f;
     $Draw();
     $.Stats.nbDrawCalls = 0;
     
@@ -2796,7 +2728,13 @@ static void $$Frame()
     SDL_GetWindowPosition($$.window, &wx, &wy);
     
     $$TempAllocatorReset();
-    $.Timer.Start(&$$.deltaTimer);
+    
+    if ($$.fpsLastTime < SDL_GetTicks() - 1000)
+    {
+      $$.fpsLastTime = SDL_GetTicks();
+      $.Stats.fps = $$.fpsFrames;
+      $$.fpsFrames = 0;
+    }
 }
 
 i32 main(i32 argc, char** argv)
@@ -2826,13 +2764,19 @@ i32 main(i32 argc, char** argv)
   $.Palette.AppendU32($$.palette, 0xff215E21); // hunter_green
   $.Palette.AppendU32($$.palette, 0xff71AA34); // leaf
 
-  $Array_New($$.bitmaps, 8);
-  $Array_New($$.surfaces, 8);
-  $Array_New($$.scenes, 4);
-  $Array_New($$.canvases, 4);
   $Array_New($$.controls, 16);
 
   $Setup();
+
+  if ($.screenX == 0x80000000)
+  {
+    $.screenX = SDL_WINDOWPOS_CENTERED;
+  }
+
+  if ($.screenY == 0x80000000)
+  {
+    $.screenY = SDL_WINDOWPOS_CENTERED;
+  }
 
   $$.window = SDL_CreateWindow( 
     $.title,
@@ -2842,6 +2786,8 @@ i32 main(i32 argc, char** argv)
     $.height * $.displayScale,
     SDL_WINDOW_SHOWN
   );
+  
+  SDL_GetWindowPosition($$.window, &$.screenX, &$.screenY);
 
   $$.renderer = SDL_CreateRenderer(
     $$.window, 
@@ -2860,16 +2806,22 @@ i32 main(i32 argc, char** argv)
   $.Timer.Start(&$$.fpsTimer);
 
   $Start();
-  
+  $$.fpsLastTime   = SDL_GetTicks();
+  $$.fixedLastTime = SDL_GetTicks();
+
   #if $IsWindows == 1
+  
   while($.quit == false)
   {
+    $.Timer.Start(&$$.frameLimitTimer);
+
     $$Frame();
 
-    f32 frameTicks = (f32) $.Timer.Ticks(&$$.frameLimitTimer);
-    if (frameTicks < $.drawMs)
+    u32 frameMs = $.Timer.Ticks(&$$.frameLimitTimer);
+
+    if (frameMs < $.drawMs)
     {
-      SDL_Delay((u32) ($.drawMs - frameTicks));
+      SDL_Delay($.drawMs - frameMs);
     }
   }
   #elif $IsBrowser == 1
@@ -2882,10 +2834,6 @@ i32 main(i32 argc, char** argv)
     $$Net_Shutdown();
     #endif
 
-    $Array_Delete($$.bitmaps);
-    $Array_Delete($$.surfaces);
-    $Array_Delete($$.scenes);
-    $Array_Delete($$.canvases);
     $Array_Delete($$.controls);
 
     #if ($MUSIC_ENABLED == 1)
@@ -2903,26 +2851,3 @@ i32 main(i32 argc, char** argv)
 
   return 0;
 }
-
-$$Make_FragmentShader(Standard, {
-  $$FRAGMENT_SET_COLOUR(c);
-});
-
-$$Make_FragmentShader(Shadow, {
-  if ((p.x + p.y) % 2)
-  {
-    $$FRAGMENT_SET_COLOUR(2);
-  }
-});
-
-$$Make_FragmentShader(Red, {
-  $$FRAGMENT_SET_COLOUR(8);
-});
-
-$$Make_FragmentShader(Blue, {
-  $$FRAGMENT_SET_COLOUR(14);
-});
-
-$$Make_FragmentShader(Green, {
-  $$FRAGMENT_SET_COLOUR(16);
-});
