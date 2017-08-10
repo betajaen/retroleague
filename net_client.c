@@ -7,7 +7,10 @@ f32 DecodeFloatImpl(char* value)
 {
   //float f=23.345466467
   //int i=*(int*)&f;
-  i32 i = atoi(value);
+  char m[9] = { 0 };
+  memcpy(&m[0], value, 8);
+
+  u32 i = strtoul(m, NULL, 16);
   f32 f = *(f32*)&i;
   return f;
 }
@@ -17,65 +20,27 @@ void DecodeFloat(char* value, f32 * v)
   *v = DecodeFloatImpl(value);
 }
 
-void DecodeVec3f(char* value, Vec3f* v)
+void DecodeVec3XZ(char* value, Vec3f* v)
 {
-  char* e = strchr(value, 'M');
+  char* e = strchr(value, '_');
   v->x = DecodeFloatImpl(value);
   value = e + 1;
-  e = strchr(value, 'M');
-  v->y = DecodeFloatImpl(value);
-  value = e + 1;
+  v->y = 0.0f;
   v->z = DecodeFloatImpl(value);
 }
 
 void DecodeI16(char* value, i16* v)
 {
-  i32 i = atoi(value);
+  i32 i = strtol(value, NULL, 16);
   *v = (i16) i; 
 }
 
 void DecodeU8(char* value, u8* v)
 {
-  i32 i = atoi(value);
+  u32 i = strtoul(value, NULL, 16);
   *v = (u8) i; 
 }
 
-void Player_ReceivePartialUpdate(u8 playerIndex, const char* msg)
-{
-  Player_ReceiveFullUpdate(playerIndex, msg);
-}
-
-void Player_ReceiveFullUpdate(u8 playerIndex, const char* msg)
-{
-  Player* player = &PLAYER[playerIndex];
-  player->obj.type = OT_PLAYER;
-  player->isNetwork = true;
-
-  char *prop = strtok((char*)msg, ";");
-  while(prop)
-  {
-    char name = prop[0];
-    char* value = prop + 1;
-    
-    switch(name)
-    {
-      case 'P': DecodeVec3f(value, &player->obj.position);     break;
-      case 'V': DecodeVec3f(value, &player->obj.velocity);     break;
-      case 'A': DecodeVec3f(value, &player->obj.acceleration); break;
-      case 'Y': DecodeI16(value, &player->obj.yaw);            break;
-      case 't': DecodeU8(value, &player->team);                break;
-      case 's': DecodeFloat(value, &player->steering);         break;
-      case 'a': DecodeFloat(value, &player->angularVelocity);  break;
-      case 'h': DecodeFloat(value, &player->heading);          break;
-      case 'y': DecodeFloat(value, &player->yawRate);          break;
-      case 'b': DecodeFloat(value, &player->absVelocity);      break;
-      case 'c': DecodeVec3f(value, &player->carAcceleration);  break;
-      case 'e': DecodeVec3f(value, &player->carVelocity);      break;
-    }
-
-    prop = strtok(NULL, ";");
-  }
-}
 
 char* WriteChar(char* w, char c)
 {
@@ -93,84 +58,137 @@ char* WriteInt(char* w, int c)
 
 char* EncodeFloat(char* w, u8 type, f32 m)
 {
-  int i=*(int*)&m;
-  int r = sprintf(w, "%c%i;", (char) type, i);
+  u32 i=*(u32*)&m;
+  int r = sprintf(w, "%c%08X;", (char) type, i);
   w += r;
   return w;
 }
 
-char* EncodeVec3(char* w, u8 type, Vec3f m)
+char* EncodeVec3XZ(char* w, u8 type, Vec3f m)
 {
-  int ix=*(int*)&m.x;
-  int iy=*(int*)&m.y;
-  int iz=*(int*)&m.z;
+  u32 ix=*(u32*)&m.x;
+  u32 iz=*(u32*)&m.z;
 
-  int r = sprintf(w, "%c%iM%iM%i;", (char) type, ix, iy, iz);
+  int r = sprintf(w, "%c%08X_%08X;", (char) type, ix, iz);
   w += r;
   return w;
 }
 
 char* EncodeU32(char* w, u8 type, u32 m)
 {
-  int r = sprintf(w, "%c%u;", (char) type, m);
+  int r = sprintf(w, "%c%08X;", (char) type, m);
   w += r;
   return w;
 }
 
 char* EncodeU16(char* w, u8 type, u16 m)
 {
-  int r = sprintf(w, "%c%u;", (char) type, m);
+  int r = sprintf(w, "%c%04X;", (char) type, m);
   w += r;
   return w;
 }
 
 char* EncodeI16(char* w, u8 type, i16 m)
 {
-  int r = sprintf(w, "%c%i;", (char) type, m);
+  int r = sprintf(w, "%c%04X;", (char) type, m);
   w += r;
   return w;
 }
 
 char* EncodeU8(char* w, u8 type, u8 m)
 {
-  int r = sprintf(w, "%c%i;", (char) type, m);
+  int r = sprintf(w, "%c%02X;", (char) type, m);
   w += r;
   return w;
 }
 
-void Player_SendFullUpdate(Player* ME)
+void Player_Send_Update(u8 slot)
 {
+  Player* player = &PLAYER[slot];
+
+  player->timestamp++;
+
   char* d = $.Mem.TempAllocator(512);
-
   char* w = d;
+  w = EncodeVec3XZ(w,  'P', player->obj.position);
+  w = EncodeVec3XZ(w,  'V', player->obj.velocity);
+  w = EncodeVec3XZ(w,  'A', player->obj.acceleration);
+  w = EncodeI16(w,     'Y', player->obj.yaw);
+  w = EncodeU8(w,      't', player->team);
+  w = EncodeFloat(w,   's', player->steering);
+  w = EncodeFloat(w,   'a', player->angularVelocity);
+  w = EncodeFloat(w,   'h', player->heading);
+  w = EncodeFloat(w,   'r', player->yawRate);
 
-  w = WriteChar(w, 'U');
-  w = WriteChar(w, '0' + FindPlayerIndex(ME));
-  w = WriteInt(w, FRAME_COUNT);
-  w = WriteChar(w, '=');
-
-  w = EncodeVec3(w,  'P', ME->obj.position);
-  w = EncodeVec3(w,  'V', ME->obj.velocity);
-  w = EncodeVec3(w,  'A', ME->obj.acceleration);
-  w = EncodeI16(w,   'Y', ME->obj.yaw);
-  w = EncodeU8(w,    't', ME->team);
-  w = EncodeFloat(w, 's', ME->steering);
-  w = EncodeFloat(w, 'a', ME->angularVelocity);
-  w = EncodeFloat(w, 'h', ME->heading);
-  w = EncodeFloat(w, 'r', ME->yawRate);
-  w = EncodeFloat(w, 'b', ME->absVelocity);
-  w = EncodeVec3(w,  'c', ME->carAcceleration);
-  w = EncodeVec3(w,  'e', ME->carVelocity);
-
-
-
-  w = WriteChar(w, '\n');
-  w = WriteChar(w, '\0');
-  $.Net.SendMessage(strlen(d), d);
+  Net_Send_UpdatePlayer(player->multiplayerReference, player->timestamp, d);
 }
 
-void Player_SendPartialUpdate(u8 type, void* data)
+void Player_Recv_Update(u8 slot, const char* msg)
 {
+  Player* player = &PLAYER[slot];
+  player->obj.type = OT_PLAYER;
+  player->isNetwork = true;
+
+  char *prop = strtok((char*)msg, ";");
+  while(prop)
+  {
+    char name = prop[0];
+    char* value = prop + 1;
+    
+    switch(name)
+    {
+      case 'P': DecodeVec3XZ(value, &player->obj.position);     break;
+      case 'V': DecodeVec3XZ(value, &player->obj.velocity);     break;
+      case 'A': DecodeVec3XZ(value, &player->obj.acceleration); break;
+      case 'Y': DecodeI16(value, &player->obj.yaw);             break;
+      case 't': DecodeU8(value, &player->team);                 break;
+      case 's': DecodeFloat(value, &player->steering);          break;
+      case 'a': DecodeFloat(value, &player->angularVelocity);   break;
+      case 'h': DecodeFloat(value, &player->heading);           break;
+      case 'r': DecodeFloat(value, &player->yawRate);           break;
+    }
+
+    prop = strtok(NULL, ";");
+  }
+}
+
+void Player_Send_Ball_Update(Ball* ball)
+{
+  char* d = $.Mem.TempAllocator(512);
+  char* w = d;
+  w = EncodeVec3XZ(w,  'P', ball->obj.position);
+  w = EncodeVec3XZ(w,  'V', ball->obj.velocity);
+  w = EncodeVec3XZ(w,  'A', ball->obj.acceleration);
+  w = EncodeI16(w,     'Y', ball->obj.yaw);
+  w = EncodeU8(w,      'b', ball->blue);
+  w = EncodeU8(w,      'r', ball->red);
+  //w = EncodeU8(w,      'l', BALL.lastTouch);
+  //w = EncodeU8(w,   'm', BALL.magnet);
+  //w = EncodeFloat(w,   't', BALL.magnetTime);
+
+  Net_Send_UpdateBall(d);
+}
+
+void Player_Recv_Ball_Update(Ball* ball, const char* msg)
+{
+  char *prop = strtok((char*)msg, ";");
+  while(prop)
+  {
+    char name = prop[0];
+    char* value = prop + 1;
+    
+    switch(name)
+    {
+      case 'P': DecodeVec3XZ(value, &ball->obj.position);     break;
+      case 'V': DecodeVec3XZ(value, &ball->obj.velocity);     break;
+      case 'A': DecodeVec3XZ(value, &ball->obj.acceleration); break;
+      case 'Y': DecodeI16(value, &ball->obj.yaw);             break;
+      case 'r': DecodeU8(value, &ball->red);                  break;
+      case 'b': DecodeU8(value, &ball->blue);                 break;
+    }
+
+    prop = strtok(NULL, ";");
+  }
 }
 
 void Player_Delete(u8 playerIndex)
@@ -186,14 +204,58 @@ void Player_DeleteMe()
 ///   Player_Delete(FindPlayerIndex(ME));
 }
 
-void Player_New(u8 playerIndex, u8 team, bool isMe)
+u8 Player_New(u16 reference)
 {
-//  Player* player = &PLAYER[playerIndex];
-//  memset(player, 0, sizeof(Player));
-//  player->obj.type = OT_PLAYER;
-//  
-//  if (isMe)
-//  {
-//    ME = &PLAYER[playerIndex];
-//  }
+  for(u32 i=0;i < MAX_PLAYERS;i++)
+  {
+    if (PLAYER[i].obj.type == OT_NONE)
+    {
+      PLAYER[i].multiplayerReference = reference;
+      PLAYER[i].isNetwork            = 1;
+      return i;
+    }
+  }
+  return 255;
+}
+
+Player* Player_GetByReference(u16 reference)
+{
+  for(u32 i=0;i < MAX_PLAYERS;i++)
+  {
+    if (PLAYER[i].obj.type != OT_NONE && PLAYER[i].multiplayerReference == reference)
+    {
+      return &PLAYER[i];
+    }
+  }
+  return NULL;
+}
+
+Player* Player_GetByReferenceOrCreate(u16 reference)
+{
+  for(u32 i=0;i < MAX_PLAYERS;i++)
+  {
+    if (PLAYER[i].obj.type != OT_NONE && PLAYER[i].multiplayerReference == reference)
+    {
+      return &PLAYER[i];
+    }
+  }
+
+  u8 slot = Player_New(reference);
+  if (slot == 255)
+    return NULL;
+
+  return &PLAYER[slot];
+}
+
+Player* Player_GetFirstControlled()
+{
+  for(u32 i=0;i < MAX_PLAYERS;i++)
+  {
+    if (PLAYER[i].obj.type != OT_NONE && PLAYER[i].multiplayerIsControlled == 1)
+    {
+
+      return &PLAYER[i];
+    }
+  }
+  return NULL;
 }

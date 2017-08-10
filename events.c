@@ -1,8 +1,12 @@
 #include "funk.h"
 #include <string.h>
+#include <time.h>
+#include <stdlib.h>
 
 void $Setup()
 {
+  srand((u32) time(NULL));
+
 #if IS_STREAMING
   $.screenX = -1600;
   $.screenY = 120;
@@ -84,15 +88,20 @@ void $Update()
 }
 
 void Update_SinglePlayerSetup();
+void Update_MultiPlayerSetup();
 
 void $Draw()
 {
   if (GAME_STATE == GAME_STATE_SINGLE)
     Update_SinglePlayer();
   else if (GAME_STATE == GAME_STATE_MULTI)
-    Update_Multiplayer();
+    Update_MultiPlayer();
   else if (GAME_STATE == GAME_STATE_TITLE)
     Update_Title();
   else if (GAME_STATE == GAME_STATE_SINGLE_SETUP)
     Update_SinglePlayerSetup();
+  else if (GAME_STATE == GAME_STATE_MULTI_SETUP)
+    Update_MultiPlayerSetup();
+  else if (GAME_STATE == GAME_STATE_NETWORK_CONNECT)
+    Update_NetworkConnect();
 }

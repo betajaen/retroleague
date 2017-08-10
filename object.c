@@ -28,6 +28,8 @@ u8  FindPlayerIndex(Player* player)
   return 255;
 }
 
+void Player_TickPhysicsSimple(Player* player);
+
 void Player_Tick(Player* player)
 {
   
@@ -72,9 +74,16 @@ void Player_Tick(Player* player)
     player->obj.yaw = (i16) player->heading;
   }
 
-  Player_TickPhysics(player, isAnimating);
-  Tick_PhysicsCollisions(player);
-  
+  if (player->isNetwork && player->multiplayerIsControlled == 0)
+  {
+    Player_TickPhysicsSimple(player);
+    Tick_PhysicsCollisions(player);
+  }
+  else
+  {
+    Player_TickPhysics(player, isAnimating);
+    Tick_PhysicsCollisions(player);
+  }
 }
 
 #define BALL_MASS 1200

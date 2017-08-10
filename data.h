@@ -142,7 +142,6 @@ typedef struct
   ObbXZ obb;
   u8 autopilot;
   u8 team;                  // 0 - red, 1 - blue
-  u8 isNetwork;
   u8 powerControls;         // 
   u8 powerAvailable;        // 
   f32 powerCooldown[MAX_POWERS];
@@ -156,8 +155,12 @@ typedef struct
   Vec3f carAcceleration, carVelocity;
   Vec3f extraVelocity;
   u32 timestamp;
-
   Vec3f contactPoint;
+  u8    isNetwork;
+  u8    multiplayerType;
+  u8    multiplayerIsControlled;
+  u16   multiplayerReference;
+  f32   multiplayerHeading;
 
 } Player;
 

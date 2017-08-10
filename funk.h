@@ -21,13 +21,18 @@ bool Object_IsAlive(Object* obj);
 void Player_Tick(Player* player);
 void Ball_Tick(Ball* ball);
 
-void Player_ReceivePartialUpdate(u8 playerIndex, const char* msg);
-void Player_ReceiveFullUpdate(u8 playerIndex, const char* msg);
-void Player_SendFullUpdate();
-void Player_SendPartialUpdate(u8 type, void* data);
+void Player_Recv_Update(u8 slot, const char* data);
+void Player_Send_Update(u8 slot);
+
+void Player_Send_Ball_Update(Ball* ball);
+void Player_Recv_Ball_Update(Ball* ball, const char* data);
+
 void Player_Delete(u8 playerIndex);
 void Player_DeleteMe();
-void Player_New(u8 playerIndex, u8 team, bool isMe);
+u8   Player_New(u16 reference);
+Player* Player_GetByReference(u16 reference);
+Player* Player_GetByReferenceOrCreate(u16 reference);
+Player* Player_GetFirstControlled();
 
 bool Can_Power(Player* player, u32 power);
 void Activate_Power(Player* player, u32 power);
@@ -41,7 +46,7 @@ void Animate_Tick(Animation* anim, Vec3f* pos, f32* yaw);
 void AnimateMoveXZ(Animation* anim, Vec3f posFrom, Vec3f posTo, f32 yawFrom, f32 yawTo, f32 time, f32 speed);
 void AnimateSpin(Animation* anim, f32 amountPerTick,f32 finalAngle, f32 time);
 
-void ReceiveMessage(const char* message);
+void Net_OnReceiveMessage(const char* message);
 
 // Decode angle to radians
 inline f32 DecodeAngle(i16 angle)
@@ -99,13 +104,34 @@ void FixedUpdate_Singleplayer();
 void Update_SinglePlayer();
 void Start_Multiplayer();
 void FixedUpdate_Multiplayer();
-void Update_Multiplayer();
+void Update_MultiPlayer();
+void Update_NetworkConnect();
 
 void RecalculateOBB(Vec3f* centre, Vec3f* halfSize, f32 heading, ObbXZ* obb);
 
 bool OBBvsOBB(ObbXZ* obb1, ObbXZ* obb2, Vec3f* mtv);
 
 Vec3f OBBGetClosestPoint(ObbXZ* obb1, Vec3f point);
+
+void Net_Start(const char* address, const char* port);
+
+void Net_Stop();
+
+void Net_Update();
+
+bool Net_IsConnected();
+
+bool Net_IsHosting();
+
+u32  Net_GetNumClients();
+
+void Net_Send_CreatePlayer(u16 reference, u8 isBot);
+
+void Net_Send_DeletePlayer(u16 reference);
+
+void Net_Send_UpdatePlayer(u16 reference, u32 time, char* data);
+
+void Net_Send_UpdateBall(char* data);
 
 #endif
 

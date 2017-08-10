@@ -7,6 +7,7 @@
 #define $$AUDIO_SAMPLES 16384
 #define $NET_MAX_PACKET_COUNT 16
 #define $NET_MAX_PACKET_SIZE 512
+#define $NET_STR_BUFFER_SIZE 2048
 
 
 #define $AUDIO_ENABLED 1
@@ -162,6 +163,14 @@ typedef struct
   u8               background;
 } $$Canvas;
 
+#if $NETWORK_ENABLED
+typedef struct
+{
+  u32   len;
+  char* str;
+} NetStrRecvLine;
+#endif
+
 typedef struct
 {
   SDL_Window*           window;
@@ -178,6 +187,9 @@ typedef struct
   micromod_sdl_context* musicContext;
 #endif
 #if $NETWORK_ENABLED == 1
+  u8*                   netStrSendBuffer;
+  u8*                   netStrRecvBuffer;
+  NetStrRecvLine*       netStrRecvLines;
   u8                    netId;
   TCPsocket             netSocket;
   SDLNet_SocketSet      netSocketSet;
@@ -2459,15 +2471,23 @@ void $$Net_Init()
   i32 r = SDLNet_Init();
   if (r < 0)
   {
-    printf("cannot init sdl2 net : %s", SDLNet_GetError());
+    printf("Cannot Initialise SDL2Net : %s\n", SDLNet_GetError());
   }
+
+  $Array_New($$.netStrRecvLines, 16);
+
+  $$.netStrSendBuffer = $.Mem.PermaAllocator(NULL, $NET_STR_BUFFER_SIZE);
+  $$.netStrRecvBuffer = $.Mem.PermaAllocator(NULL, $NET_STR_BUFFER_SIZE);
 #endif
 }
 
 void $$Net_Shutdown()
 {
 #if $NETWORK_ENABLED == 1
-
+  
+  $.Mem.PermaAllocator($$.netStrSendBuffer, 0);
+  $.Mem.PermaAllocator($$.netStrRecvBuffer, 0);
+  $Array_Delete($$.netStrRecvLines);
   if ($$.netSocket != NULL)
   {
     SDLNet_TCP_DelSocket($$.netSocketSet, $$.netSocket);
@@ -2480,6 +2500,7 @@ void $$Net_Shutdown()
 
   SDLNet_Quit();
 
+
 #endif
 }
 
@@ -2490,30 +2511,47 @@ bool Net_Connect(const char* address, u16 port)
   IPaddress ip;
   if (SDLNet_ResolveHost(&ip, address, port) < 0)
   {
-    printf("Unknown address %s:%i", address, port);
+    printf("Cannot Resolve Host '%s' => '%i'\n", address, port);
   }
 
   $$.netSocket = SDLNet_TCP_Open(&ip);
   
   if ($$.netSocket == NULL)
   {
-    printf("Could not open socket. Reason: %s", SDLNet_GetError());
+    printf("Cannot open socket : %s\n", SDLNet_GetError());
     return false;
   }
 
   $$.netSocketSet = SDLNet_AllocSocketSet(1);
-  $Assert($$.netSocketSet, "Could not open socket");
+  $Assert($$.netSocketSet, "Cannot open socket");
 
   $Assert(SDLNet_TCP_AddSocket($$.netSocketSet, $$.netSocket) != -1, "Could not add socket to socket set");
-  
-  printf("Socket Opened\n");
   return true;
 #else
   return false;
 #endif
 }
 
-bool Net_PeekMessage()
+bool Net_Disconnect()
+{
+#if $NETWORK_ENABLED == 1
+  if ($$.netSocketSet != NULL)
+  {
+    SDLNet_FreeSocketSet($$.netSocketSet);
+  }
+  
+  if ($$.netSocket != NULL)
+  {
+    SDLNet_TCP_Close($$.netSocket);
+  }
+
+  return true;
+#else
+  return false;
+#endif
+}
+
+bool Net_HasMessage()
 {
 #if $NETWORK_ENABLED == 1
   if ($$.netSocket == NULL)
@@ -2530,46 +2568,190 @@ bool Net_PeekMessage()
 #endif
 }
 
-bool Net_RecvMessage(u32* dataLength, u32 dataCapacity, void* data)
-{
-#if $NETWORK_ENABLED == 1
-  i32 size = SDLNet_TCP_Recv($$.netSocket, data, dataCapacity);
-
-  if (size < 0)
-  {
-    printf("Socket error! %i", size);
-    return false;
-  }
-
-  *dataLength = (u32) size;
-
-  return true;
-#else
-  return false;
-#endif
-}
-
-void Net_SendMessage(u32 dataLength, void* data)
+i32 Net_Send(const void* data, u32 length)
 {
 #if $NETWORK_ENABLED == 1
   if ($$.netSocket != NULL)
   {
-
-    i32 size = SDLNet_TCP_Send($$.netSocket, data, dataLength);
-    if (size < 0)
+    i32 size = length;
+    u8* bytes = (u8*) data;
+    i32 bytesSent = 0;
+    while(bytesSent < size)
     {
-      printf("Socket error!");
-    }
+      i32 sendLength = INT_MAX;
+      if (size - bytesSent < sendLength)
+        sendLength = size - bytesSent;
 
-    if (size != dataLength)
-    {
-      printf("Message was not fully sent!");
+      i32 r = SDLNet_TCP_Send($$.netSocket, bytes + bytesSent, sendLength);
+      if (r == -1)
+      {
+        printf("Socket Error when sending: %s", SDLNet_GetError());
+        return r;
+      }
+      bytesSent += r;
     }
+    return 0;
   }
   else
   {
     printf("Cannot send message to a non-connected socket!");
+    return -1;
   }
+#else
+  return -1;
+#endif
+}
+
+i32 Net_Recv(void* data, u32 capacity)
+{
+#if $NETWORK_ENABLED == 1
+  if ($$.netSocket != NULL)
+  {
+    if (Net_HasMessage() == false)
+    {
+      return 0;
+    }
+
+    i32 size = SDLNet_TCP_Recv($$.netSocket, data, capacity);
+
+    if (size < 0)
+    {
+      printf("Socket error! %i", size);
+      return false;
+    }
+
+    return size;
+  }
+  else
+  {
+    printf("Cannot receive message to a non-connected socket!");
+    return -1;
+  }
+#else
+  return -1;
+#endif
+}
+
+i32 Net_SendLine(const char* fmt, ...)
+{
+#if $NETWORK_ENABLED == 1
+    va_list argptr;
+    va_start(argptr, fmt);
+    i32 length = vsprintf((char*) &$$.netStrSendBuffer[0], fmt, argptr);
+    va_end(argptr);
+    
+    if (length <= 0)
+      return -1;
+    
+    $$.netStrSendBuffer[length] = '\n';
+    $$.netStrSendBuffer[length+1] = '\0';
+
+    return Net_Send($$.netStrSendBuffer, length+1);
+#else
+  return -1;
+#endif
+}
+u32 inbuf_used = 0;
+
+i32 Net_RecvLines()
+{
+  // https://stackoverflow.com/questions/6090594/c-recv-read-until-newline-occurs
+
+
+  char* inbuf = (char*) &$$.netStrRecvBuffer[0];
+
+  size_t inbuf_remain = $NET_STR_BUFFER_SIZE - inbuf_used;
+  if (inbuf_remain == 0)
+  {
+    return -1;
+  }
+
+  i32 rv = Net_Recv((void*)&inbuf[inbuf_used], inbuf_remain);
+  
+  if (rv == 0)
+  {
+    return -1;
+  }
+  
+  if (rv < 0 && errno == EAGAIN) {
+    return 0;
+  }
+
+  inbuf_used += rv;
+
+  /* Scan for newlines in the line buffer; we're careful here to deal with embedded \0s
+   * an evil server may send, as well as only processing lines that are complete.
+   */
+  char *line_start = inbuf;
+  char *line_end;
+  while ( (line_end = (char*)memchr((void*)line_start, '\n', inbuf_used - (line_start - inbuf))))
+  {
+    *line_end = 0;
+    u32 len = line_end - line_start;
+    char* str = $.Mem.TempAllocator(len + 1);
+    memcpy(str, line_start, len + 1);
+    NetStrRecvLine* p;
+    $Array_PushAndFillOut($$.netStrRecvLines, p);
+    p->len = len - 1;
+    p->str = str;
+    line_start = line_end + 1;
+  }
+  /* Shift buffer down so the unprocessed data is at the start */
+  inbuf_used -= (line_start - inbuf);
+  memmove(inbuf, line_start, inbuf_used);
+
+  return $Array_Size($$.netStrRecvLines);
+}
+
+void  Net_SkipLine()
+{
+#if $NETWORK_ENABLED == 1
+  if ($Array_Size($$.netStrRecvLines) > 0)
+  {
+    $Array_Shiftdown($$.netStrRecvLines);
+  }
+#endif
+}
+
+u32  Net_PeekLine(const char** line)
+{
+#if $NETWORK_ENABLED == 1
+  
+  if ($Array_Size($$.netStrRecvLines) == 0)
+    return 0;
+
+  NetStrRecvLine p = $$.netStrRecvLines[0];
+  *line = p.str;
+  return p.len;
+
+#else
+  return 0;
+#endif
+}
+
+i32 Net_RecvLine(const char* fmt, ...)
+{
+#if $NETWORK_ENABLED == 1
+  
+  if ($Array_Size($$.netStrRecvLines) == 0)
+    return 0;
+
+  // if fmt is NULL, then just return the length of the current one.
+  NetStrRecvLine p = $$.netStrRecvLines[0];
+
+  if (fmt == NULL)
+    return p.len;
+
+  $Array_Shiftdown($$.netStrRecvLines);
+
+  va_list args;
+  va_start(args, fmt);
+  vsscanf(p.str, fmt, args);
+  va_end(args);
+
+  return p.len;
+#else
+  return -1;
 #endif
 }
 
@@ -2653,9 +2835,15 @@ void $$SetupApi()
   $.Mem.PermaAllocator              = Mem_PermaAllocate;
   $.Mem.TempAllocator               = Mem_TempAllocate;
   $.Net.Connect                     = Net_Connect;
-  $.Net.PeekMessage                 = Net_PeekMessage;
-  $.Net.RecvMessage                 = Net_RecvMessage;
-  $.Net.SendMessage                 = Net_SendMessage;
+  $.Net.Disconnect                  = Net_Disconnect;
+  $.Net.HasMessage                  = Net_HasMessage;
+  $.Net.Recv                        = Net_Recv;
+  $.Net.Send                        = Net_Send;
+  $.Net.RecvLines                   = Net_RecvLines;
+  $.Net.RecvLine                    = Net_RecvLine;
+  $.Net.SendLine                    = Net_SendLine;
+  $.Net.PeekLine                    = Net_PeekLine;
+  $.Net.SkipLine                    = Net_SkipLine;
 }
 
 static void $$Frame()
@@ -2727,6 +2915,10 @@ static void $$Frame()
     int wx, wy;
     SDL_GetWindowPosition($$.window, &wx, &wy);
     
+    #if ($NETWORK_ENABLED == 1)
+      $Array_Clear($$.netStrRecvLines);
+    #endif
+
     $$TempAllocatorReset();
     
     if ($$.fpsLastTime < SDL_GetTicks() - 1000)

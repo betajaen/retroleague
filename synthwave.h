@@ -215,9 +215,18 @@ typedef struct
 
   struct {
     bool (*Connect)(const char* address, u16 port);
-    bool (*PeekMessage)();
-    bool (*RecvMessage)(u32* dataLength, u32 dataCapacity, void* data); 
-    void (*SendMessage)(u32 dataLength, void* data);
+    bool (*Disconnect)();
+    bool (*HasMessage)();
+    
+    u32  (*Send)(const void* data, u32 length);
+    u32  (*Recv)(void* data, u32 length);
+
+    u32   (*SendLine)(const char* format, ...);
+    u32   (*RecvLines)();
+    u32   (*RecvLine)(const char* format, ...);
+    u32   (*PeekLine)(const char** line);
+    void  (*SkipLine)();
+
   } Net;
 
 } Synthwave;
@@ -442,7 +451,7 @@ f32 $Rad_Wrap_NegHalfPi_PosHalfPi(f32 v);
       {\
         $Array_Grow(A, 0);                            \
       }\
-      OUT_PTR = &((A)[$Array_Size(A)]);               \
+      (OUT_PTR) = &((A)[$Array_Size(A)]);             \
       $Array_Header(A)->size++;                       \
     });
 
@@ -450,6 +459,19 @@ f32 $Rad_Wrap_NegHalfPi_PosHalfPi(f32 v);
     $Scope({                                          \
       ((A)[INDEX]) = ((A)[$Array_Size(A)] - 1);       \
       $Array_Header(A)->size--;                       \
+    });
+
+#define $Array_Shiftdown(A) \
+    $Scope({\
+      u32 length = $Array_Size(A);\
+      if (length)\
+      {\
+        for (u32 ii = 0; ii < (length - 1); ii++)\
+        {\
+          A[ii] = A[ii+1];\
+        }\
+        $Array_Size(A) = length - 1;\
+      }\
     });
 
 typedef enum

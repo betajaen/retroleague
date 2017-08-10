@@ -55,18 +55,26 @@ inline f32 Player_GetHandBrake(Player* player)
   return 0.0f;
 }
 
+void Player_TickPhysicsSimple(Player* player)
+{
+  f32 sn = sinf(player->heading),
+      cs = cosf(player->heading);
+  
+  player->extraVelocity.x *= 0.45f;
+  player->extraVelocity.z *= 0.45f;
+  
+  player->carVelocity.FORWARD = cs * (player->extraVelocity.FORWARD + player->obj.velocity.FORWARD) + sn * (player->obj.velocity.RIGHT + player->extraVelocity.RIGHT);
+  player->carVelocity.RIGHT   = cs * (player->extraVelocity.RIGHT   + player->obj.velocity.RIGHT)   - sn * (player->obj.velocity.FORWARD + player->extraVelocity.FORWARD);
+    
+  player->obj.velocity.RIGHT   += player->obj.acceleration.RIGHT * $.fixedDeltaTime;
+  player->obj.velocity.FORWARD += player->obj.acceleration.FORWARD * $.fixedDeltaTime;
+  
+  player->heading += player->yawRate * $.fixedDeltaTime;
+  player->obj.yaw = (i16) ($Rad2Deg(-player->heading));
+}
+
 void Player_TickPhysics(Player* player, bool isAnimating)
 {
-  #if 0
-  if (player->isNetwork)
-  {
-    return;
-  }
-  #endif
-
-  //  Vec3f velocity, acceleration; //, lateralFrontForce, lateralRearForce, traction, drag, force;
-
-  //f32 rotAngle, sideslip, slipAngleFront, slipAngleRear, angularAcceleration, torque,
   f32 sn = sinf(player->heading),
   cs = cosf(player->heading),
   steerAngle = (f32) player->steering;
@@ -74,13 +82,9 @@ void Player_TickPhysics(Player* player, bool isAnimating)
   steerAngle = $Clamp(steerAngle, -PLAYER_maxSteer, PLAYER_maxSteer);
   player->steering = steerAngle;
 
-  if (Player_GetThrottle(player) == 0)
-  {
-    player->extraVelocity.x *= 0.45f;
-    player->extraVelocity.y *= 0.45f;
-    player->extraVelocity.z *= 0.45f;
-  }
-
+  player->extraVelocity.x *= 0.45f;
+  player->extraVelocity.z *= 0.45f;
+  
 	// Get velocity in local car coordinates
 	player->carVelocity.FORWARD = cs * (player->extraVelocity.FORWARD + player->obj.velocity.FORWARD) + sn * (player->obj.velocity.RIGHT + player->extraVelocity.RIGHT);
 	player->carVelocity.RIGHT   = cs * (player->extraVelocity.RIGHT   + player->obj.velocity.RIGHT)   - sn * (player->obj.velocity.FORWARD + player->extraVelocity.FORWARD);

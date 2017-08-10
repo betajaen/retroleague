@@ -1,5 +1,6 @@
 #include "funk.h"
 #include <string.h>
+#include <stdlib.h>
 
 Surface SURFACE;
 Scene   SCENES[4];
@@ -83,8 +84,8 @@ static void Draw_HUD(Canvas* canvas)
     Player* player = &PLAYER[ii];
     if (player->obj.type != OT_PLAYER)
       continue;
-    $.Canvas.DrawTextF(canvas, &FONT, DB16_BANANA, 0, 200 - 18 - 9 - (ii * 9), "[%04i] %i %.1f %.1f %.1f %.1f %i",
-      ii, player->timestamp,
+    $.Canvas.DrawTextF(canvas, &FONT, DB16_BANANA, 0, 200 - 18 - 9 - (ii * 9), "[%04X] %.1f %.1f %.1f %.1f %i",
+      player->multiplayerReference,
       player->obj.position.x, player->obj.position.z,
       $Rad2Deg(player->heading), player->absVelocity, player->acceleratorBrake);
   }
@@ -455,9 +456,6 @@ void Update_SinglePlayer()
 
 void Start_Multiplayer()
 {
-  $.Net.Connect("localhost", 5000);
-  $.Net.SendMessage(1, "H");
-  
   CAMERA_THETA      = CAMERA_THETA_DEFAULT;
   CAMERA_THETA_TIME = 0.0f;
   CAMERA_THETA_PID_ENABLED = false;
@@ -468,28 +466,7 @@ void Start_Multiplayer()
 
 void FixedUpdate_Multiplayer()
 {
-  if ($.Net.PeekMessage())
-  {
-    u8* data = $TempNewA(u8, 1025);
-    for(u32 ii=0;ii < 8;ii++)
-    {
-      u32 length = 0;
-      if ($.Net.RecvMessage(&length, 1025, data) == false)
-        break;
-      data[length] = '\0';
-      //printf("> %s\n", data);
-      
-      char *line = strtok(data, "\n");
-      while(line)
-      {
-          ReceiveMessage(line);
-          line = strtok(NULL, "\n");
-      }
-
-      if ($.Net.PeekMessage() == false)
-        break;
-    }
-  }
+  Net_Update();
 
   if (LOCAL[0] != NULL)
   {
@@ -506,7 +483,7 @@ void FixedUpdate_Multiplayer()
 
 i32 syncTimer = 0;
 
-void Update_Multiplayer(Player* ME)
+void Update_MultiPlayer(Player* ME)
 {
   if (ME == NULL)
   {
@@ -517,9 +494,21 @@ void Update_Multiplayer(Player* ME)
   }
   else
   {
-    if (syncTimer++ > 20)
+    if (syncTimer++ > 10)
     {
-      Player_SendFullUpdate();
+      for(u32 ii=0;ii < MAX_PLAYERS;ii++)
+      {
+        if (PLAYER[ii].multiplayerIsControlled)
+        {
+          Player_Send_Update(ii);
+        }
+      }
+
+      if (Net_IsHosting())
+      {
+        Player_Send_Ball_Update(&BALL);
+      }
+
       syncTimer = 0;
     }
 
@@ -531,9 +520,9 @@ void Update_Multiplayer(Player* ME)
 // 1 - Player Blue
 // 2 - CPU Red
 // 3 - CPU Blue
-static i32 setupMode[4];
-static i32 p2Mode;
-static f32 setupCarRot;
+static i32 setupSinglePlayerMode[4];
+static i32 setupSingleP2Mode;
+static f32 setupSingleCarRot;
 
 static const char* MODE_TEAMS[4] = {
   "RED",
@@ -570,63 +559,63 @@ void Update_SinglePlayerSetup()
   $.Canvas.Clear(&HUD, DB16_VERY_DARK_VIOLET);
 
   if ($.Input.ControlPressed(CONTROL_P1_LEFT))
-    setupMode[0]--;
+    setupSinglePlayerMode[0]--;
   else if ($.Input.ControlPressed(CONTROL_P1_RIGHT))
-    setupMode[0]++;
+    setupSinglePlayerMode[0]++;
   
-  setupMode[0] = $WrapMinMax(setupMode[0], 0, 2);
+  setupSinglePlayerMode[0] = $WrapMinMax(setupSinglePlayerMode[0], 0, 2);
 
   if ($.Input.ControlPressed(CONTROL_P2_LEFT))
-    p2Mode--;
+    setupSingleP2Mode--;
   else if ($.Input.ControlPressed(CONTROL_P2_RIGHT))
-    p2Mode++;
+    setupSingleP2Mode++;
   
-  p2Mode = $WrapMinMax(p2Mode, 0, 3);
+  setupSingleP2Mode = $WrapMinMax(setupSingleP2Mode, 0, 3);
 
-  setupMode[0] = $WrapMinMax(setupMode[0], 0, 2);
-  setupMode[1] = p2Mode;
+  setupSinglePlayerMode[0] = $WrapMinMax(setupSinglePlayerMode[0], 0, 2);
+  setupSinglePlayerMode[1] = setupSingleP2Mode;
 
-  if (setupMode[1] >= 2)  // Single Player
+  if (setupSinglePlayerMode[1] >= 2)  // Single Player
   {
-    if (setupMode[0] == 0)
+    if (setupSinglePlayerMode[0] == 0)
     {
-      setupMode[1] = 3;
-      setupMode[2] = 2;
-      setupMode[3] = 3;
+      setupSinglePlayerMode[1] = 3;
+      setupSinglePlayerMode[2] = 2;
+      setupSinglePlayerMode[3] = 3;
     }
     else
     {
-      setupMode[1] = 2;
-      setupMode[2] = 3;
-      setupMode[3] = 2;
+      setupSinglePlayerMode[1] = 2;
+      setupSinglePlayerMode[2] = 3;
+      setupSinglePlayerMode[3] = 2;
     }
   }
   else // Two Player
   {
-    if (setupMode[0] == setupMode[1])
+    if (setupSinglePlayerMode[0] == setupSinglePlayerMode[1])
     {
-      if (setupMode[0] == 0)
+      if (setupSinglePlayerMode[0] == 0)
       {
-        setupMode[2] = 3;
-        setupMode[3] = 3;
+        setupSinglePlayerMode[2] = 3;
+        setupSinglePlayerMode[3] = 3;
       }
       else
       {
-        setupMode[2] = 2;
-        setupMode[3] = 2;
+        setupSinglePlayerMode[2] = 2;
+        setupSinglePlayerMode[3] = 2;
       }
     }
     else
     {
-      if (setupMode[0] == 0)
+      if (setupSinglePlayerMode[0] == 0)
       {
-        setupMode[2] = 2;
-        setupMode[3] = 3;
+        setupSinglePlayerMode[2] = 2;
+        setupSinglePlayerMode[3] = 3;
       }
       else
       {
-        setupMode[2] = 3;
-        setupMode[3] = 2;
+        setupSinglePlayerMode[2] = 3;
+        setupSinglePlayerMode[3] = 2;
       }
     }
   }
@@ -637,7 +626,7 @@ void Update_SinglePlayerSetup()
 
   for(u32 ii=0;ii < 4;ii++)
   {
-    i32 mode = setupMode[ii];
+    i32 mode = setupSinglePlayerMode[ii];
     $.Canvas.DrawTextF(&HUD, &FONT, MODE_TEAMS_COLOUR[mode], x + s / 2 - MODE_TEAMS_HALF_LEN[mode], y, "%s", MODE_TEAMS[mode]);
 
     i32 ni = 0;
@@ -666,27 +655,27 @@ void Update_SinglePlayerSetup()
   {
     u8 team = 0;
 
-    if (setupMode[ii] == 0 || setupMode[ii] == 2)
+    if (setupSinglePlayerMode[ii] == 0 || setupSinglePlayerMode[ii] == 2)
       team = 0;
     else
       team = 1;
     
     $.Scene.Clear(&SCENES[ii], DB16_VERY_DARK_VIOLET);
-    Draw_Car(&SCENES[ii], $Vec3_Xyz(0,0,0), setupCarRot, 0.0f, team);
+    Draw_Car(&SCENES[ii], $Vec3_Xyz(0,0,0), setupSingleCarRot, 0.0f, team);
     $.Scene.Render(&SCENES[ii], &SURFACE);
   }
 
-  setupCarRot += 90.0f * $.deltaTime;
+  setupSingleCarRot += 90.0f * $.deltaTime;
 
   $.Surface.Render(&SURFACE);
 
   if ($.Input.ControlReleased(CONTROL_P1_HANDBRAKE))
   {
-    u8 p0 = (setupMode[0] == 0 || setupMode[0] == 2) ? 0 : 1;
-    u8 p1 = (setupMode[1] == 0 || setupMode[1] == 2) ? 0 : 1;
-    u8 p2 = (setupMode[2] == 0 || setupMode[2] == 2) ? 0 : 1;
-    u8 p3 = (setupMode[3] == 0 || setupMode[3] == 2) ? 0 : 1;
-    bool p2IsPlayer = (setupMode[1] < 2);
+    u8 p0 = (setupSinglePlayerMode[0] == 0 || setupSinglePlayerMode[0] == 2) ? 0 : 1;
+    u8 p1 = (setupSinglePlayerMode[1] == 0 || setupSinglePlayerMode[1] == 2) ? 0 : 1;
+    u8 p2 = (setupSinglePlayerMode[2] == 0 || setupSinglePlayerMode[2] == 2) ? 0 : 1;
+    u8 p3 = (setupSinglePlayerMode[3] == 0 || setupSinglePlayerMode[3] == 2) ? 0 : 1;
+    bool p2IsPlayer = (setupSinglePlayerMode[1] < 2);
 
 
     Start_SinglePlayer(p0, p1, p2, p3, p2IsPlayer);
@@ -699,8 +688,12 @@ void Update_SinglePlayerSetup()
     GAME_STATE = GAME_STATE_TITLE;
     return;
   }
-
 }
+
+static int   setupMultiState;
+static char* setupMultiAddress[256];
+static char* setupMultiPort[256];
+static int setupMultiConnectState;
 
 void Update_Title()
 {
@@ -726,19 +719,111 @@ void Update_Title()
       $.Scene.SetPovLookAtXyz(&SCENES[ii], 0, 2.0, 2.5, 0, 0, 0);
     }
     
-    setupCarRot = 0;
-    p2Mode = 2;
-    setupMode[0] = 0;
-    setupMode[1] = 2;
-    setupMode[2] = 3;
-    setupMode[3] = 2;
+    setupSingleCarRot = 0;
+    setupSingleP2Mode = 2;
+    setupSinglePlayerMode[0] = 0;
+    setupSinglePlayerMode[1] = 2;
+    setupSinglePlayerMode[2] = 3;
+    setupSinglePlayerMode[3] = 2;
     return;
   }
   else if ($.Input.ControlReleased(CONTROL_START_MULTI))
   {
     GAME_STATE = GAME_STATE_MULTI_SETUP;
-    Start_Multiplayer();
+    setupMultiState = 0;
+    setupMultiAddress[0] = '\0';
+    strcat((char*) &setupMultiAddress[0], "127.0.0.1");
+    setupMultiPort[0] = '\0';
+    strcat((char*) &setupMultiPort[0], "27960");
+
+    GAME_STATE = GAME_STATE_MULTI_SETUP;
+
     return;
   } 
 
+}
+void Update_MultiPlayerSetup()
+{
+  $.Canvas.Clear(&HUD, DB16_VERY_DARK_VIOLET);
+
+  
+  $.Canvas.DrawTextF(&HUD, &FONT, DB16_BIRTHDAY_SUIT, $.width / 2 - 66, 12, "MAINFRAME CONNECTION");
+
+  $.Canvas.DrawTextF(&HUD, &FONT, DB16_BANANA, 12, 48, "[1] Host");
+
+  $.Canvas.DrawTextF(&HUD, &FONT, DB16_BIRTHDAY_SUIT, 70, 48, (char*) &setupMultiAddress[0]);
+
+  $.Canvas.DrawTextF(&HUD, &FONT, DB16_BANANA, 12, 64, "[2] Port");
+  
+  $.Canvas.DrawTextF(&HUD, &FONT, DB16_BIRTHDAY_SUIT, 70, 64, (char*) &setupMultiPort[0]);
+
+  $.Canvas.DrawTextF(&HUD, &FONT, DB16_FLINT, 12, $.height - 12, "[TAB] Menu");
+  $.Canvas.DrawTextF(&HUD, &FONT, DB16_BANANA, $.width - 12 - 89, $.height - 12, "[SPACE] Connect");
+
+  $.Canvas.Render(&HUD, &SURFACE);
+  $.Surface.Render(&SURFACE);
+  
+  if ($.Input.ControlReleased(CONTROL_P1_HANDBRAKE))
+  {
+    setupMultiState = 1;
+
+    Net_Start((char*) setupMultiAddress, (char*) setupMultiPort);
+    GAME_STATE = GAME_STATE_NETWORK_CONNECT;
+    return;
+  }
+
+  if ($.Input.ControlReleased(CONTROL_P1_AUTOPILOT))
+  {
+    GAME_STATE = GAME_STATE_TITLE;
+    return;
+  }
+}
+
+void Update_NetworkConnect()
+{
+  Net_Update();
+
+  $.Canvas.Clear(&HUD, DB16_VERY_DARK_VIOLET);
+  $.Canvas.DrawTextF(&HUD, &FONT, DB16_BIRTHDAY_SUIT, $.width / 2 - 66, 12, "CONNECTING TO MAINFRAME");
+
+  $.Canvas.Render(&HUD, &SURFACE);
+  $.Surface.Render(&SURFACE);
+  
+  if (Net_IsConnected())
+  {
+    switch(setupMultiState)
+    {
+      case 1:
+      {
+        u16 reference = rand();
+        u8 playerIndex = Player_New(reference);
+    
+        if (Net_GetNumClients() >= 4)
+        {
+          GAME_STATE = GAME_STATE_TITLE;
+          return;
+        }
+        
+        printf("Creating Player...\n");
+        setupMultiState = 2;
+        Net_Send_CreatePlayer(reference, 0);
+      }
+      break;
+      case 2:
+      {
+        Player* player = Player_GetFirstControlled();
+        if (player != NULL)
+        {
+          printf("Starting Game...\n");
+          
+          LOCAL[0] = player;
+          LOCAL[1] = NULL;
+
+          GAME_STATE = GAME_STATE_MULTI;
+          Start_Multiplayer();
+        }
+      }
+      break;
+    }
+  }
 }

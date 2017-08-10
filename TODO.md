@@ -30,6 +30,9 @@ Bug Fixes for Friday
 - [x] Split screen two player
 - [x] Single player setup screen
 - [ ] Multiplayer setup screen (enter ip, etc.)
+- [ ] Fix Throttle
+- [ ] Fix seperate camera pid controllers
+- [ ] joypad support (MAYBE)
 
 If I can make it in time/v2
 ---------------------------
