@@ -21,9 +21,9 @@ Bug Fixes for Friday
 - [x] Missing Wheel Meshes
 - [x] Collisions for car-car
 - [x] Timing fixes
-- [ ] Network accuracy lost
+- [x] Network accuracy lost
 - [ ] Manual/Readme screen
-- [ ] Secret demo mode - (button to activate on title)
+- [x] Secret demo mode - (button to activate on title)
 - [ ] 'GOAAAL' text when you score
 - [ ] Game Timer
 - [ ] Game Reset system

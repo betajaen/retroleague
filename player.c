@@ -170,9 +170,11 @@ void Player_TickBallCollision(Player* player, Ball* ball)
 
   if (IntersectPointXZRadius($Vec3_Xyz(0,0,0), MESH_PLAYER[0].halfSize, MESH_PLAYER[0].min, MESH_PLAYER[0].max, localPoint, 2.56f, &result))
   {
+    const f32 ballMod = 2500.0f;
+
     Vec3f normalisedVelocity = $Vec3_Normalise(player->obj.velocity); // $Vec3_Mul(player->obj.velocity, worldNormal));
-    ball->obj.acceleration.x += normalisedVelocity.x * 4000.0f;
-    ball->obj.acceleration.z += normalisedVelocity.z * 4000.0f;
+    ball->obj.acceleration.x += normalisedVelocity.x * ballMod;
+    ball->obj.acceleration.z += normalisedVelocity.z * ballMod;
     ball->lastTouch = FindPlayerIndex(player);
   }
 }

@@ -9,10 +9,10 @@
 #define $NET_MAX_PACKET_SIZE 512
 #define $NET_STR_BUFFER_SIZE 2048
 
-
 #define $AUDIO_ENABLED 1
 #define $MUSIC_ENABLED 1
 #define $NETWORK_ENABLED 1
+#define $FIXED_FUNCTION_DIFFUSE 1
 
 #include "synthwave.h"
 #include <math.h>
@@ -29,11 +29,16 @@
   #undef near
   #undef y0
 #elif $IsBrowser == 1
+  #undef $NETWORK_ENABLED
+  #define $NETWORK_ENABLED 0
   #include <emscripten.h>
 #endif
 
 #include <SDL.h>
+
+#if $NETWORK_ENABLED == 1
 #include <SDL_net.h>
+#endif
 
 #include "ref/lodepng.c"
 
@@ -1110,7 +1115,13 @@ bool $$Scene_Rasterize_Triangle($$FrameBuffer* fb, ShaderTriangleParams* triPara
         f32 prevDepth = $$FrameBuffer_FetchDepth(fb, params.in.p.x, params.in.p.y);
         if (depth > prevDepth)
         {
-          $$Shader_FixedFrag(&params);
+          
+          #if $FIXED_FUNCTION_DIFFUSE == 1
+            params.out.colour     = params.in.triangleColour;
+            params.out.brightness = $Clamp(0.25f + params.in.lightDiff, 0.0f, 1.0f);
+          #else
+            $$Shader_FixedFrag(&params);
+          #endif
           
           $$FrameBuffer_StoreDepth(fb,      params.in.p.x, params.in.p.y, depth);
           $$FrameBuffer_StoreColour(fb,     params.in.p.x, params.in.p.y, params.out.colour);
@@ -1164,13 +1175,36 @@ void $$Scene_DrawModel($$Scene* scene, $$FrameBuffer* fb, Mat44* vps, Mesh* mesh
     triParams.in.v[1] = triangle->v[1];
     triParams.in.v[2] = triangle->v[2];
     triParams.in.normal = triangle->n;
+    
+    #if $FIXED_FUNCTION_DIFFUSE == 1
 
-    $$Shader_FixedTri(&triParams);
+      $Mat44_MultiplyVec4(&triParams.out.v[0],     &triParams.in.point2Screen, &triParams.in.v[0]);
+      if (ScreenCoords(&triParams.out.v[0]))
+        continue;
 
-    if (ScreenCoords(&triParams.out.v[0]) || 
-        ScreenCoords(&triParams.out.v[1]) || 
-        ScreenCoords(&triParams.out.v[2])) 
-      continue;
+      $Mat44_MultiplyVec4(&triParams.out.v[1],     &triParams.in.point2Screen, &triParams.in.v[1]);
+      if (ScreenCoords(&triParams.out.v[1]))
+        continue;
+
+      $Mat44_MultiplyVec4(&triParams.out.v[2],     &triParams.in.point2Screen, &triParams.in.v[2]);
+      if (ScreenCoords(&triParams.out.v[2]))
+        continue;
+
+      $Mat44_MultiplyVec4(&triParams.out.normal, &triParams.in.vector2World, &triParams.in.normal);
+
+      triParams.out.lightDiff = fabsf($Vec3_Dot4(triParams.out.normal, triParams.in.lightDir));
+    
+    #else
+    
+      $$Shader_FixedTri(&triParams);
+    
+      if (ScreenCoords(&triParams.out.v[0]) || 
+          ScreenCoords(&triParams.out.v[1]) || 
+          ScreenCoords(&triParams.out.v[2])) 
+        continue;
+
+    #endif
+
 
     $$Scene_Rasterize_Triangle(fb, &triParams, triangle->colour);
     $.Stats.nbTriangles++;
@@ -2655,6 +2689,7 @@ u32 inbuf_used = 0;
 
 i32 Net_RecvLines()
 {
+#if $NETWORK_ENABLED == 1
   // https://stackoverflow.com/questions/6090594/c-recv-read-until-newline-occurs
 
 
@@ -2701,6 +2736,9 @@ i32 Net_RecvLines()
   memmove(inbuf, line_start, inbuf_used);
 
   return $Array_Size($$.netStrRecvLines);
+#else
+  return 0;
+#endif
 }
 
 void  Net_SkipLine()
@@ -2764,8 +2802,13 @@ void $$SetupApi()
 {
   $.fixedDeltaTime                  = 0;
   $.time                            = 0;
-  $.drawMs                          = 8;
+  #if $IsBrowser == 1
+  $.drawMs                          = 25;
+  $.fixedMs                         = 25;
+  #else
+  $.drawMs                          = 16;
   $.fixedMs                         = 16;
+  #endif
   $.title                           = "Synthwave";
   $.width                           = 320;
   $.height                          = 200;

@@ -1,1 +1,1 @@
-emcc animation.c collision.c events.c game.c mesh_ball.c mesh_player.c network.c object.c util.c synthwave.c -g -O3 -s WASM=1 -s USE_SDL=2 -s USE_SDL_NET=2 --embed-file assets --shell-file emscriptem_shell.html -o bin/game.html
+emcc ai.c animation.c ball.c collision.c events.c game.c mesh_ball.c mesh_player.c mesh_wheel.c net_client.c net_msg.c object.c player.c powers.c synthwave.c util.c -g -O3 -s USE_SDL=2 --embed-file assets --shell-file emscriptem_shell.html -o bin/game.html

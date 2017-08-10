@@ -28,8 +28,7 @@ void $Setup()
   $.Input.BindControl(CONTROL_P1_RIGHT,              $KEY_D);
   $.Input.BindControl(CONTROL_P1_CAMERA_LEFT,        $KEY_Q);
   $.Input.BindControl(CONTROL_P1_CAMERA_RIGHT,       $KEY_E);
-  $.Input.BindControl(CONTROL_P1_HANDBRAKE,          $KEY_SPACE);
-  $.Input.BindControl(CONTROL_P1_AUTOPILOT,          $KEY_TAB);
+  $.Input.BindControl(CONTROL_P1_HANDBRAKE,          $KEY_X);
   $.Input.BindControl(CONTROL_P1_POWER_KICK,         $KEY_1);
   $.Input.BindControl(CONTROL_P1_POWER_MAGNET,       $KEY_2);
   $.Input.BindControl(CONTROL_P1_POWER_SPIN,         $KEY_3);
@@ -40,7 +39,7 @@ void $Setup()
   $.Input.BindControl(CONTROL_P2_RIGHT,              $KEY_L);
   $.Input.BindControl(CONTROL_P2_CAMERA_LEFT,        $KEY_U);
   $.Input.BindControl(CONTROL_P2_CAMERA_RIGHT,       $KEY_O);
-  $.Input.BindControl(CONTROL_P2_HANDBRAKE,          $KEY_X);
+  $.Input.BindControl(CONTROL_P2_HANDBRAKE,          $KEY_COMMA);
   $.Input.BindControl(CONTROL_P2_AUTOPILOT,          $KEY_M);
   $.Input.BindControl(CONTROL_P2_POWER_KICK,         $KEY_7);
   $.Input.BindControl(CONTROL_P2_POWER_MAGNET,       $KEY_8);
@@ -48,6 +47,10 @@ void $Setup()
 
   $.Input.BindControl(CONTROL_START_SINGLE,          $KEY_A);
   $.Input.BindControl(CONTROL_START_MULTI,           $KEY_B);
+  $.Input.BindControl(CONTROL_CONFIRM,               $KEY_SPACE);
+  $.Input.BindControl(CONTROL_CANCEL,                $KEY_TAB);
+  $.Input.BindControl(CONTROL_SECRET,                $KEY_P);
+
 }
 
 void $Start()
@@ -89,6 +92,7 @@ void $Update()
 
 void Update_SinglePlayerSetup();
 void Update_MultiPlayerSetup();
+void Update_MultiPlayer();
 
 void $Draw()
 {

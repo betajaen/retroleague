@@ -67,7 +67,7 @@ inline f32 ApproxZero(f32 v)
 
 inline bool ApproxEqual(f32 a, f32 b)
 {
-  return !fabsf(b - a) <= FLT_EPSILON;
+  return !(fabsf(b - a) <= FLT_EPSILON);
 }
 
 inline f32 AbsDifference(f32 a, f32 b)
@@ -99,12 +99,11 @@ inline f32 PidError(f32 target, f32 current)
 }
 
 void Update_Title();
-void Start_SinglePlayer();
+void Start_SinglePlayer(u8 p0, u8 p1, u8 p2, u8 p3, bool p1IsPlayer, bool p2IsPlayer);
 void FixedUpdate_Singleplayer();
 void Update_SinglePlayer();
 void Start_Multiplayer();
 void FixedUpdate_Multiplayer();
-void Update_MultiPlayer();
 void Update_NetworkConnect();
 
 void RecalculateOBB(Vec3f* centre, Vec3f* halfSize, f32 heading, ObbXZ* obb);
