@@ -6,6 +6,7 @@ StringBuilder.extend('string');
 var readline      = require('readline');
 var port          = 27960;
 var clients       = [];
+var teams         = [0,1,0,1];
 var clientsWithSlots = [null,null,null,null];
 var references    = [0,0,0,0];
 var types         = [0,0,0,0];
@@ -45,6 +46,17 @@ function DeleteSlot(slot)
   clientsWithSlots[slot] = null;
 }
 
+function GetNumActiveSlots()
+{
+  var count = 0;
+  for(var ii=0;ii < types.length;ii++)
+  {
+    if (types[ii] != 0)
+      count++;
+  }
+  return count;
+}
+
 function Send(from, to, msg)
 {
   if (to == null)
@@ -54,13 +66,13 @@ function Send(from, to, msg)
       if (from != null && from == client)
         return;
       
-      //console.log(">> to:" + client.name + ", len:" + msg.length.toString() + ", message:" + msg.toString());
+      console.log(">> to:" + client.name + ", len:" + msg.length.toString() + ", message:" + msg.toString());
       client.write(msg.toString() + "\n");
     });
   }
   else
   {
-    //console.log(">> to:" + to.name + ", len:" + msg.length.toString() + ", message:" + msg.toString());
+    console.log(">> to:" + to.name + ", len:" + msg.length.toString() + ", message:" + msg.toString());
     to.write(msg.toString() + "\n");
   }
 }
@@ -78,15 +90,20 @@ function Net_OnConnection(client)
     host = client;
   }
   Net_SendStatus(null, client, clients.length, clients.length == 1);
-  Net_SendStatus(client, null, clients.length, false);
+  
   for(var ii=0;ii < types.length;ii++)
   {
       if (clientsWithSlots[ii] != client && types[ii] != 0)
       {
-        Send(null, client, String.format("C {0} {1} 0", references[ii], types[ii]));
+        Send(null, client, String.format("S {0} {1}", GetNumActiveSlots().toString(), client == host));
+        Send(null, client, String.format("C {0} {1} 0 {2}", references[ii], types[ii], teams[ii]));
         Send(null, client, String.format("U {0} {1} {2}", references[ii], times[ii], lastStates[ii]));
       }
-      Send(null, client, String.format("B {0}", lastBallState));
+      
+      if (lastBallState != "")
+      {
+        Send(null, client, String.format("B {0}", lastBallState));
+      }
   }
 }
 
@@ -106,10 +123,16 @@ function Net_OnDisconnection(client)
     
     if (host)
     {
-      Net_SendStatus(host, null, clients.length, false);
-      Net_SendStatus(null, host, clients.length, true);
+      Net_SendStatus(host, null, GetNumActiveSlots(), false);
+      Net_SendStatus(null, host, GetNumActiveSlots(), true);
     }
   }
+
+  if (clients.length == 0)
+  {
+    lastBallState = "";
+  }
+
 }
 
 function Net_CreatePlayer(client, reference, isBot)
@@ -120,12 +143,12 @@ function Net_CreatePlayer(client, reference, isBot)
   if (slot != -1)
   {
     clientsWithSlots[slot] = client;
-    Send(null, client, String.format("C {0} {1} 1", reference, type));
-    Send(client, null, String.format("C {0} {1} 0", reference, type));
+    Send(null, client, String.format("C {0} {1} 1 {2}", reference, type, teams[slot]));
+    Send(client, null, String.format("C {0} {1} 0 {2}", reference, type, teams[slot]));
   }
   else
   {
-    Send(null, client, String.format("C {0} 0 0", reference));  // No.
+    Send(null, client, String.format("C {0} 0 0 0", reference));  // No.
   }
 }
 
@@ -161,7 +184,7 @@ function Net_UpdateBall(client, data)
 
 function Net_OnMessage(client, msg)
 {
-  //console.log("<< (" + client.toString() + ") " + msg.toString());
+  console.log("<< (" + client.toString() + ") " + msg.toString());
 
   if (msg.length < 2)
     return;

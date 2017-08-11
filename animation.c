@@ -7,7 +7,7 @@ static void Animate_MoveXZ(Animation* anim, Vec3f* pos, f32* yaw)
   *pos = $Vec3_LerpXZ(anim->posFrom, anim->posTo, t);
   *yaw = $Rad_Lerp(anim->yawFrom, anim->yawTo, t);
   
-  printf("time = %f\n", anim->time);
+  //-- printf("time = %f\n", anim->time);
 
   f32 delta = anim->speed * $.deltaTime;
   anim->time += delta;

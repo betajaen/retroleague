@@ -6,6 +6,7 @@
 #include "synthwave.h"
 
 #define IS_STREAMING 0
+#define PLAY_TIME (60.0f * 3)
 
 #define MAX_PLAYERS 4
 #define BOUNDS_SIZE_F 150.0f
@@ -39,6 +40,9 @@
 #define CONTROL_CONFIRM 3
 #define CONTROL_CANCEL 4
 #define CONTROL_SECRET 5
+#define CONTROL_OPTION_1 6
+#define CONTROL_OPTION_2 7
+
 
 
 #define CONTROL_P1_FORWARD        40
@@ -90,6 +94,7 @@
 #define GAME_STATE_MULTI           3
 #define GAME_STATE_SINGLE_SETUP    4
 #define GAME_STATE_MULTI_SETUP     5
+#define GAME_STATE_SCORES          6
 
 typedef struct
 {
@@ -165,7 +170,9 @@ typedef struct
   u8    multiplayerIsControlled;
   u16   multiplayerReference;
   f32   multiplayerHeading;
-
+  u8    score;
+  u8    justScored;
+  f32   scoreTime;
 } Player;
 
 typedef struct
@@ -175,6 +182,7 @@ typedef struct
   u8     magnet;
   f32    magnetTime;
   u8     lastTouch;
+  f32    gameTime;
 } Ball;
 
 typedef struct
@@ -200,10 +208,6 @@ extern Bitmap  ART;
 extern Mesh    MESH_PLAYER[2];
 extern Mesh    MESH_BALL;
 extern Mesh    MESH_WHEEL;
-extern Vec3f   CAMERA_POSITION;
-extern Vec3f   CAMERA_ROTATION;
-extern f32     CAMERA_THETA;
-extern f32     CAMERA_THETA_TIME;
 extern u32     FRAME_COUNT;
 extern Bitmap  TITLE;
 extern i32     GAME_STATE;

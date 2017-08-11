@@ -202,6 +202,8 @@ typedef struct
   } Surface;
 
   struct {
+    i32  (*TextInput)(char* str, u32 capacity);
+
     void (*BindControl)(u32 control, i32 key);
     bool (*ControlDown)(u32 control);
     bool (*ControlPressed)(u32 control);
@@ -217,6 +219,7 @@ typedef struct
     bool (*Connect)(const char* address, u16 port);
     bool (*Disconnect)();
     bool (*HasMessage)();
+    bool (*IsConnected)();
     
     u32  (*Send)(const void* data, u32 length);
     u32  (*Recv)(void* data, u32 length);
@@ -238,6 +241,7 @@ extern void $Start();
 extern void $Update();
 extern void $Draw();
 
+#if 0
 #if _DEBUG
 #define $Assert(X, REASON) assert(X && REASON)
 #define $Ensure(X) assert(X)
@@ -246,6 +250,11 @@ extern void $Draw();
 #define $Assert(X, REASON)
 #define $Ensure(X)
 #define $DEBUG  0
+#endif
+#else
+#define $DEBUG  1
+#define $Assert(X, REASON) assert(X && REASON)
+#define $Ensure(X) assert(X)
 #endif
 
 #if defined(_MSC_VER)

@@ -7,7 +7,7 @@ bool CheckTimestamp(u8 playerIndex, u32 timestamp)
   if (timestamp < PLAYER[playerIndex].timestamp)
   {
     // old message
-    printf("Old message from Player: %i", playerIndex);
+    //printf("Old message from Player: %i", playerIndex);
     return false;
   }
 
@@ -34,7 +34,7 @@ bool Net_IsHosting()
   return isHosting;
 }
 
-bool Net_IsConnected()
+bool Net_IsAlive()
 {
   return isConnected;
 }
@@ -56,7 +56,7 @@ void Net_Receive_Status()
   // @TODO If nbClients == 1, then we should add bots.
   //       If nbClients != 0, then they should be bots.
 
-  printf("Received Status: NumClients=%i, IsHosting=%i\n", numClients, isHosting);
+  //printf("Received Status: NumClients=%i, IsHosting=%i\n", numClients, isHosting);
 }
 
 // Client wants to connect to server
@@ -68,9 +68,9 @@ void Net_Send_CreatePlayer(u16 reference, u8 isBot)
 
 void Net_Receive_CreatePlayer()
 {
-  u32 reference = 0, type = 0, isController = 0;
-  $.Net.RecvLine("C %i %i %i", &reference, &type, &isController);
-  printf("Received Connected Reference=%i Type=%i IsController=%i\n", reference, type, isController);
+  u32 reference = 0, type = 0, isController = 0, team = 0;
+  $.Net.RecvLine("C %i %i %i %i", &reference, &type, &isController, &team);
+  printf("Received Connected Reference=%i Type=%i IsController=%i Team=%i\n", reference, type, isController, team);
   
   // TODO
   // Find player by reference, and set it up.
@@ -81,6 +81,7 @@ void Net_Receive_CreatePlayer()
     return;
   }
 
+  player->team = team;
   player->obj.type = OT_PLAYER;
   player->multiplayerType = type;
   player->multiplayerIsControlled = isController;
@@ -128,7 +129,7 @@ void Net_Receive_Update()
   Player* player = Player_GetByReference(playerReference);
   if (player == NULL)
   {
-    printf("Unknown Player Reference=%i\n", playerReference);
+    //printf("Unknown Player Reference=%i\n", playerReference);
     return;
   }
 
@@ -138,7 +139,7 @@ void Net_Receive_Update()
 void Net_Send_UpdateBall(char* data)
 {
   $.Net.SendLine("B %s", data);
-  printf("Ball:SEND => %s\n", data);
+  //printf("Ball:SEND => %s\n", data);
 }
 
 void Net_Recv_UpdateBall()
@@ -150,7 +151,7 @@ void Net_Recv_UpdateBall()
   u32 length = $.Net.RecvLine("B %s", data);
   
   Player_Recv_Ball_Update(&BALL, data);
-  printf("Ball:RECV => %s\n", data);
+  //printf("Ball:RECV => %s\n", data);
 }
 
 void Net_Start(const char* host, const char* port)
@@ -180,7 +181,7 @@ void Net_Update()
     
     switch (str[0])
     {
-      default:  printf("Unknown Message %s\n", str); 
+      default:  printf("Unknown Message %s\n", str);
                 $.Net.SkipLine();               break;
       case 'S': Net_Receive_Status();           break;
       case 'C': Net_Receive_CreatePlayer();     break;

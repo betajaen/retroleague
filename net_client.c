@@ -15,6 +15,25 @@ f32 DecodeFloatImpl(char* value)
   return f;
 }
 
+void DecodePlayer(char* value, u8* localPlayerSlot)
+{
+  i32 i = strtol(value, NULL, 16);
+  u16 reference = (u16) i; 
+
+  if (reference == 0)
+  {
+    *localPlayerSlot = 255;
+    return;
+  }
+  
+  Player* player = Player_GetByReference(reference);
+  if (player == NULL)
+    *localPlayerSlot = 255;
+  else
+    *localPlayerSlot = FindPlayerIndex(player);
+  
+}
+
 void DecodeFloat(char* value, f32 * v)
 {
   *v = DecodeFloatImpl(value);
@@ -52,6 +71,18 @@ char* WriteChar(char* w, char c)
 char* WriteInt(char* w, int c)
 {
   int r = sprintf(w, "%i", c);
+  w += r;
+  return w;
+}
+
+char* EncodePlayer(char* w, u8 type, u8 localPlayerSlot)
+{
+  u16 reference = 0;
+  
+  if (localPlayerSlot != 255)
+    reference = PLAYER[localPlayerSlot].multiplayerReference;
+
+  int r = sprintf(w, "%c%04X;", (char) type, localPlayerSlot);
   w += r;
   return w;
 }
@@ -119,6 +150,14 @@ void Player_Send_Update(u8 slot)
   w = EncodeFloat(w,   'a', player->angularVelocity);
   w = EncodeFloat(w,   'h', player->heading);
   w = EncodeFloat(w,   'r', player->yawRate);
+  w = EncodeU8(w,      'g', player->score);
+  w = EncodeU8(w,      'j', player->justScored);
+  w = EncodeFloat(w,   'J', player->scoreTime);
+  w = EncodeFloat(w,   '0', player->powerCooldown[0]);
+  w = EncodeFloat(w,   '1', player->powerCooldown[1]);
+  w = EncodeFloat(w,   '2', player->powerCooldown[2]);
+  w = EncodeU8(w,      'K', player->powerAvailable);
+  w = EncodeU8(w,      'k', player->powerControls);
 
   Net_Send_UpdatePlayer(player->multiplayerReference, player->timestamp, d);
 }
@@ -146,6 +185,14 @@ void Player_Recv_Update(u8 slot, const char* msg)
       case 'a': DecodeFloat(value, &player->angularVelocity);   break;
       case 'h': DecodeFloat(value, &player->heading);           break;
       case 'r': DecodeFloat(value, &player->yawRate);           break;
+      case 'g': DecodeU8(value, &player->score);                break;
+      case 'j': DecodeU8(value, &player->justScored);           break;
+      case 'J': DecodeFloat(value, &player->scoreTime);         break;
+      case '0': DecodeFloat(value, &player->powerCooldown[0]);  break;
+      case '1': DecodeFloat(value, &player->powerCooldown[1]);  break;
+      case '2': DecodeFloat(value, &player->powerCooldown[2]);  break;
+      case 'K': DecodeU8(value, &player->powerAvailable);       break;
+      case 'k': DecodeU8(value, &player->powerControls);        break;
     }
 
     prop = strtok(NULL, ";");
@@ -156,15 +203,16 @@ void Player_Send_Ball_Update(Ball* ball)
 {
   char* d = $.Mem.TempAllocator(512);
   char* w = d;
-  w = EncodeVec3XZ(w,  'P', ball->obj.position);
-  w = EncodeVec3XZ(w,  'V', ball->obj.velocity);
-  w = EncodeVec3XZ(w,  'A', ball->obj.acceleration);
-  w = EncodeI16(w,     'Y', ball->obj.yaw);
-  w = EncodeU8(w,      'b', ball->blue);
-  w = EncodeU8(w,      'r', ball->red);
-  //w = EncodeU8(w,      'l', BALL.lastTouch);
-  //w = EncodeU8(w,   'm', BALL.magnet);
-  //w = EncodeFloat(w,   't', BALL.magnetTime);
+  w = EncodeVec3XZ(w, 'P', ball->obj.position);
+  w = EncodeVec3XZ(w, 'V', ball->obj.velocity);
+  w = EncodeVec3XZ(w, 'A', ball->obj.acceleration);
+  w = EncodeI16(w,    'Y', ball->obj.yaw);
+  w = EncodeU8(w,     'b', ball->blue);
+  w = EncodeU8(w,     'r', ball->red);
+  w = EncodePlayer(w, 't', ball->lastTouch);
+  w = EncodeFloat(w,  'm', ball->magnetTime);
+  w = EncodePlayer(w, 'M', ball->magnet);
+  w = EncodeFloat(w,  'T', ball->gameTime);
 
   Net_Send_UpdateBall(d);
 }
@@ -185,6 +233,10 @@ void Player_Recv_Ball_Update(Ball* ball, const char* msg)
       case 'Y': DecodeI16(value, &ball->obj.yaw);             break;
       case 'r': DecodeU8(value, &ball->red);                  break;
       case 'b': DecodeU8(value, &ball->blue);                 break;
+      case 't': DecodePlayer(value, &ball->lastTouch);        break;
+      case 'm': DecodeFloat(value, &ball->magnetTime);        break;
+      case 'M': DecodePlayer(value, &ball->magnet);           break;
+      case 'T': DecodeFloat(value, &ball->gameTime);          break;
     }
 
     prop = strtok(NULL, ";");

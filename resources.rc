@@ -1,6 +1,6 @@
 font.png RESOURCE "assets/font.png"
 art.png RESOURCE "assets/art.png"
-dragon2.mod RESOURCE "assets/dragon2.mod"
+speed_rules.mod RESOURCE "assets/speed_rules.mod"
 title.png RESOURCE "assets/title.png"
 
 

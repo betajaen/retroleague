@@ -67,8 +67,7 @@ void Power_Activate_Punt(Player* player, Ball* ball)
 void Power_Activate_Magnet(Player* player, Ball* ball)
 {
   player->powerCooldown[POWER_MAGNET] = 5.0f;
- // printf("** Magnet\n");
-  
+
   Vec3f ballPos = ball->obj.position;
   f32 distance = $Vec3_Length($Vec3_Sub(player->obj.position, ballPos));
   
@@ -79,7 +78,7 @@ void Power_Activate_Magnet(Player* player, Ball* ball)
     return;
   }
   
-  player->powerCooldown[POWER_MAGNET] = 30.0f;
+  player->powerCooldown[POWER_MAGNET] = 10.0f;
 
   ball->magnet     = FindPlayerIndex(player);
   ball->magnetTime = 4.0f;

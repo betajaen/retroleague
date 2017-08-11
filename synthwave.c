@@ -176,6 +176,14 @@ typedef struct
 } NetStrRecvLine;
 #endif
 
+typedef enum
+{
+  $KS_None,
+  $KS_Character,
+  $KS_Backspace,
+  $KS_Enter
+} $$KeyboardState;
+
 typedef struct
 {
   SDL_Window*           window;
@@ -183,6 +191,8 @@ typedef struct
   u32                   fpsLastTime, fpsCurrent, fpsFrames, deltaTimeMs, accumulator;
   u32                   fixedLastTime, fixedCurrent, fixedFrames;
   $$Control*            controls;
+  char                  keyboardCharacter;
+  $$KeyboardState       keyboardState;
 #if $AUDIO_ENABLED == 1
   $$Sound*              sounds;
   $$SoundInstance       soundInstances[$$AUDIO_INSTANCES];
@@ -1419,6 +1429,9 @@ void Scene_Render(Scene* scene, Surface* surface)
 
 void Scene_Clear(Scene* scene, u8 colour)
 {
+  if (scene != NULL && scene->opaque == 0)
+    return;
+
   $EnsureOpaque(scene);
   $$Scene* s = $$CastOpaque($$Scene, scene);
   
@@ -1883,6 +1896,45 @@ bool Timer_IsPaused(Timer* timer)
   
   return timer->state >= TF_PAUSED;
 }
+
+i32 Input_TextInput(char* str, u32 capacity)
+{
+  assert(str);
+  u32 len = strlen(str);
+
+  switch($$.keyboardState)
+  {
+    default:
+    case $KS_None:
+    return 0;
+    case $KS_Character:
+    {
+      if (len + 1< capacity)
+      {
+        str[len] = $$.keyboardCharacter;
+        str[len+1] = 0;
+        return 1;
+      }
+    }
+    return 0;
+    case $KS_Backspace:
+    {
+      if (len > 0)
+      {
+        str[len-1] = 0;
+        return 1;
+      }
+    }
+    return 0;
+    case $KS_Enter:
+      if (len > 0)
+        return 2;
+    return 0;
+  }
+  return 0;
+}
+
+
 
 void Input_BindControl(u32 control, i32 key)
 {
@@ -2506,6 +2558,7 @@ void $$Net_Init()
   if (r < 0)
   {
     printf("Cannot Initialise SDL2Net : %s\n", SDLNet_GetError());
+    return;
   }
 
   $Array_New($$.netStrRecvLines, 16);
@@ -2538,14 +2591,19 @@ void $$Net_Shutdown()
 #endif
 }
 
+bool Net_Disconnect();
+
 bool Net_Connect(const char* address, u16 port)
 {
 #if $NETWORK_ENABLED == 1
+  
+  Net_Disconnect();
 
   IPaddress ip;
   if (SDLNet_ResolveHost(&ip, address, port) < 0)
   {
     printf("Cannot Resolve Host '%s' => '%i'\n", address, port);
+    return false;
   }
 
   $$.netSocket = SDLNet_TCP_Open(&ip);
@@ -2558,9 +2616,18 @@ bool Net_Connect(const char* address, u16 port)
 
   $$.netSocketSet = SDLNet_AllocSocketSet(1);
   $Assert($$.netSocketSet, "Cannot open socket");
-
   $Assert(SDLNet_TCP_AddSocket($$.netSocketSet, $$.netSocket) != -1, "Could not add socket to socket set");
+  
   return true;
+#else
+  return false;
+#endif
+}
+
+bool Net_IsConnected()
+{
+#if $NETWORK_ENABLED == 1
+  return ($$.netSocket != NULL && $$.netSocketSet != NULL);
 #else
   return false;
 #endif
@@ -2572,13 +2639,16 @@ bool Net_Disconnect()
   if ($$.netSocketSet != NULL)
   {
     SDLNet_FreeSocketSet($$.netSocketSet);
+    $$.netSocketSet = NULL;
   }
   
   if ($$.netSocket != NULL)
   {
     SDLNet_TCP_Close($$.netSocket);
   }
-
+  
+  $$.netSocketSet = NULL;
+  $$.netSocket = NULL;
   return true;
 #else
   return false;
@@ -2593,7 +2663,7 @@ bool Net_HasMessage()
 
   if (SDLNet_CheckSockets($$.netSocketSet, 0) < 0)
   {
-    printf("Check Sockets failed %s\n", SDLNet_GetError());
+    printf("Check Sockets failed: %s\n", SDLNet_GetError());
   }
 
   return SDLNet_SocketReady($$.netSocket) != 0;
@@ -2692,6 +2762,7 @@ i32 Net_RecvLines()
 #if $NETWORK_ENABLED == 1
   // https://stackoverflow.com/questions/6090594/c-recv-read-until-newline-occurs
 
+  $Array_Clear($$.netStrRecvLines);
 
   char* inbuf = (char*) &$$.netStrRecvBuffer[0];
 
@@ -2862,6 +2933,7 @@ void $$SetupApi()
   $.Sound.MuteAll                   = Sound_MuteAll;
   $.Music.Play                      = Music_Play;
   $.Font.New                        = Font_New;
+  $.Input.TextInput                 = Input_TextInput;
   $.Input.BindControl               = Input_BindControl;
   $.Input.ControlDown               = Input_ControlDown;
   $.Input.ControlPressed            = Input_ControlPressed;
@@ -2879,6 +2951,7 @@ void $$SetupApi()
   $.Mem.TempAllocator               = Mem_TempAllocate;
   $.Net.Connect                     = Net_Connect;
   $.Net.Disconnect                  = Net_Disconnect;
+  $.Net.IsConnected                 = Net_IsConnected;
   $.Net.HasMessage                  = Net_HasMessage;
   $.Net.Recv                        = Net_Recv;
   $.Net.Send                        = Net_Send;
@@ -2898,6 +2971,7 @@ static void $$Frame()
 
 
     SDL_Event event;
+    $$.keyboardState     = $KS_None;
 
     while (SDL_PollEvent(&event))
     {
@@ -2906,6 +2980,25 @@ static void $$Frame()
         case SDL_QUIT:
         {
           $.quit = true;
+        }
+        break;
+        case SDL_TEXTINPUT:
+        {
+          $$.keyboardCharacter = event.text.text[0];
+          $$.keyboardState     = $KS_Character;
+        }
+        break;
+        case SDL_KEYDOWN:
+        {
+
+          if (event.key.keysym.sym == SDLK_BACKSPACE)
+          {
+            $$.keyboardState  = $KS_Backspace;
+          }
+          else if (event.key.keysym.sym == SDLK_RETURN)
+          {
+            $$.keyboardState = $KS_Enter;
+          }
         }
         break;
       }

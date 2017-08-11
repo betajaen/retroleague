@@ -51,7 +51,7 @@ void Player_AI_UpdateThrottle(Player* player, f32 targetSpeed)
 
   f32 speedError  = PidError(targetSpeed, speed);
   f32 newThrottle = UpdatePid(throttle, speedError, $.fixedDeltaTime);
-  i8 throttleAbs = $Clamp((i8) newThrottle, 0, 100);
+  i8 throttleAbs = $Clamp((i8) newThrottle, 0, 50) * 2;
   player->acceleratorBrake = throttleAbs;
 }
 
@@ -64,7 +64,7 @@ void Player_AI_StartMoveTowardsBall(Player* player, Ball* ball)
 
   MakePid(throttle, 1.0f, 0.01f, 0.001f); // 1.0f, 0.01f, 0.001f
   throttle->min = 25.0f;
-  throttle->max = 100.0f;
+  throttle->max = 50.0f;
   MakePidDefaults1(steering);
   steering->min = -$Deg2Rad(80.0f);
   steering->max = $Deg2Rad(80.0f);

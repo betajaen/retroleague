@@ -14,3 +14,7 @@ _build/
 
 genie.exe
 install/
+
+dist/
+
+itch/

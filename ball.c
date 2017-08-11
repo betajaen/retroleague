@@ -38,21 +38,45 @@ void Ball_Tick(Ball* ball)
 
   if (inGoalArea && ball->obj.position.z < -BOUNDS_SIZE_HALF_F)
   {
-    printf("Blue Scored\n");
+    //printf("Blue Scored %i\n", ball->lastTouch);
+
     ball->blue++;
     ball->obj.position = $Vec3_Xyz(0,0,0);
     ball->obj.velocity = $Vec3_Xyz(0,0,0);
     ball->obj.acceleration = $Vec3_Xyz(0,0,0);
     ball->magnet = 255;
+
+    if (ball->blue >= 100)
+      ball->gameTime = 0.0f;
+    
+    if (ball->lastTouch != 255)
+    {
+      PLAYER[ball->lastTouch].justScored = 1;
+      PLAYER[ball->lastTouch].scoreTime  = 1.0f;
+    }
+
+    ball->lastTouch                = 255;
   }
   else if (inGoalArea && ball->obj.position.z > +BOUNDS_SIZE_HALF_F)
   {
-    printf("Red Scored\n");
+    //printf("Red Scored by %i\n", ball->lastTouch);
+
     ball->red++;
     ball->obj.position = $Vec3_Xyz(0,0,0);
     ball->obj.velocity = $Vec3_Xyz(0,0,0);
     ball->obj.acceleration = $Vec3_Xyz(0,0,0);
     ball->magnet = 255;
+    
+    if (ball->blue >= 100)
+      ball->gameTime = 0.0f;
+
+    if (ball->lastTouch != 255)
+    {
+      PLAYER[ball->lastTouch].justScored = 1;
+      PLAYER[ball->lastTouch].scoreTime  = 1.0f;
+    }
+
+    ball->lastTouch                = 255;
   }
 
   if (ball->magnet == 255)
@@ -89,6 +113,8 @@ void Ball_Tick(Ball* ball)
     ball->obj.position.RIGHT      = fwd.RIGHT;
     ball->obj.yaw                 = (ball->obj.yaw + 3) % 360;
 
+    ball->lastTouch               = FindPlayerIndex(player);
+    
     ball->magnetTime -= $.fixedDeltaTime;
     if (ball->magnetTime <= 0.0f)
     {

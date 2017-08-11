@@ -84,6 +84,16 @@ void Player_Tick(Player* player)
     Player_TickPhysics(player, isAnimating);
     Tick_PhysicsCollisions(player);
   }
+
+  if (player->justScored != 0)
+  {
+    player->scoreTime -= $.fixedDeltaTime;
+    if (player->scoreTime <= 0.0f)
+    {
+      player->justScored = 0;
+    }
+  }
+
 }
 
 #define BALL_MASS 1200

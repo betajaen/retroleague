@@ -21,11 +21,14 @@ i32     GAME_STATE;
 
 #define CAMERA_THETA_DEFAULT 90.0f
 
-f32  CAMERA_THETA;
-f32  CAMERA_THETA_TIME;
-f32  CAMERA_THETA_PID_DELTA;
-bool CAMERA_THETA_PID_ENABLED;
-Pid  CAMERA_THETA_PID;
+f32  CAMERA_THETA[2];
+f32  CAMERA_THETA_TIME[2];
+f32  CAMERA_THETA_PID_DELTA[2];
+bool CAMERA_THETA_PID_ENABLED[2];
+Pid  CAMERA_THETA_PID[2];
+
+void Start_Scores();
+
 
 void Game_Tick()
 {
@@ -39,6 +42,16 @@ void Game_Tick()
   }
 
   Ball_Tick(&BALL);
+
+  BALL.gameTime -= $.fixedDeltaTime;
+
+  if (BALL.gameTime <= 0.0f)
+  {
+    GAME_STATE = GAME_STATE_SCORES;
+    Start_Scores();
+    return;
+  }
+
 }
 
 static void Setup_Scenes()
@@ -70,6 +83,19 @@ static void Setup_Scenes()
 static void Draw_HUD(Canvas* canvas)
 {
   $.Canvas.Clear(canvas, DB16_TRANSPARENT);
+
+  #if 0
+  if (Net_IsHosting())
+  {
+    $.Canvas.DrawText(canvas, &FONT, DB16_BANANA, 0, 0, "HOSTING");
+  }
+  else
+  {
+    $.Canvas.DrawText(canvas, &FONT, DB16_BANANA, 0, 0, "CLIENT");
+  }
+  #endif
+
+#if 0
   $.Canvas.DrawTextF(canvas, &FONT, DB16_REGENT_GREY, 0, 200 - 9, "D%03i:%.4f F%03i:%.4f T%03i", 
       (i32) $.Stats.fps,
       (f32) $.deltaTime,
@@ -77,56 +103,49 @@ static void Draw_HUD(Canvas* canvas)
       (f32) $.fixedDeltaTime,
       $.Stats.nbTriangles
       );
-  
-  #if 0
-  for(u32 ii=0;ii < MAX_PLAYERS;ii++)
+#endif
+
+  int pcx = $.width / 2;
+ 
+  if (LOCAL[1] != NULL)
   {
-    Player* player = &PLAYER[ii];
-    if (player->obj.type != OT_PLAYER)
-      continue;
-    $.Canvas.DrawTextF(canvas, &FONT, DB16_BANANA, 0, 200 - 18 - 9 - (ii * 9), "[%04X] %.1f %.1f %.1f %.1f %i",
-      player->multiplayerReference,
-      player->obj.position.x, player->obj.position.z,
-      $Rad2Deg(player->heading), player->absVelocity, player->acceleratorBrake);
+    pcx /= 2;
   }
-  #endif
-  
+
   for(u32 ii=0;ii < 2;ii++)
   {
-    Player* player = LOCAL[0];
+    Player* player = LOCAL[ii];
 
     if (player != NULL)
     {
-     // if (player->autopilot)
-     // {  
-     //  $.Canvas.DrawText(canvas, &FONT, DB16_BANANA, 320 / 2 - 42, 24, "<<AUTO PILOT>>");
-     // }
-
+     
      u32 power_width = MAX_POWERS * 9;
 
      for(u32 jj=0;jj < MAX_POWERS;jj++)
      {
         if (Can_Power(player, jj))
         {
-          $.Canvas.DrawTextF(canvas, &FONT, DB16_INDIGO + jj, (320 / 2 - power_width) + jj * 9, 200 - 11, "%c", POWERS_NAME[jj][0]);
+          $.Canvas.DrawTextF(canvas, &FONT, DB16_INDIGO + jj, (pcx - power_width) + jj * 9, 200 - 11, "%c", POWERS_NAME[jj][0]);
         }
         else
         {
-          $.Canvas.DrawTextF(canvas, &FONT, DB16_REGENT_GREY, (320 / 2 - power_width) + jj * 9, 200 - 11, "-");
+          $.Canvas.DrawTextF(canvas, &FONT, DB16_REGENT_GREY, (pcx - power_width) + jj * 9, 200 - 11, "-");
         }
      }
 
+     if (player->justScored)
+     {
+        $.Canvas.DrawTextF(canvas, &FONT, DB16_BANANA, pcx - 20, 30, "GOAL!");
+     }
+
+     pcx *= 3;
     }
   }
 
-  #if 0
-    $.Canvas.DrawTextF(&CANVAS, &FONT, DB16_BANANA, 0, 200 - 18, "BALL: %.1f %.1f",
-     BALL.obj.position.x, BALL.obj.position.z, 
-     BALL.obj.velocity.x, BALL.obj.velocity.z);
-  #endif
-  
-  $.Canvas.DrawTextF(canvas, &FONT, DB16_FADED_RED,  $.width  / 2 - 20, 2, "%i", BALL.red);
-  $.Canvas.DrawTextF(canvas, &FONT, DB16_CADET_BLUE, $.height / 2 + 20, 2, "%i", BALL.blue);
+  $.Canvas.DrawTextF(canvas, &FONT, DB16_FADED_RED,  $.width / 2 - 14, 2, "%02i", BALL.red);
+  $.Canvas.DrawTextF(canvas, &FONT, DB16_CADET_BLUE, $.width / 2 + 3, 2, "%02i", BALL.blue);
+
+  $.Canvas.DrawTextF(canvas, &FONT, DB16_BANANA, ($.width / 2) - 14, 12, "%02i:%02i", (int) (BALL.gameTime / 60.0f), (int) (fmodf(BALL.gameTime, 60.0f)), BALL.gameTime);
 
   $.Canvas.Render(canvas, &SURFACE);
 
@@ -217,9 +236,9 @@ static void Draw_Player(Player* localPlayer, Scene* scene, u32 localIndex)
     for(u32 jj=0;jj < nbDots / 4;jj++)
     {
       f32 x = -(GOAL_SIZE_X_F * 0.5f) + (ii * dotDistance);
-      f32 z = dotDistance + BOUNDS_SIZE_HALF_F + (jj * dotDistance);
+      f32 z = dotDistance + BOUNDS_SIZE_HALF_F - dotDistance * 2.5f + (jj * dotDistance);
       $.Scene.DrawGroundDot(scene, DB16_FADED_RED, x, z);
-      z = -BOUNDS_SIZE_HALF_F - GOAL_SIZE_X_F + (jj * dotDistance);
+      z = -(BOUNDS_SIZE_HALF_F + (jj * dotDistance));
       $.Scene.DrawGroundDot(scene, DB16_CADET_BLUE, x, z);
     }
   }
@@ -227,8 +246,8 @@ static void Draw_Player(Player* localPlayer, Scene* scene, u32 localIndex)
   if (localPlayer->anim.state != ANIMATION_STATE_SPIN)
   {
     const f32 cameraDistance = 6.0f;
-    f32 c = cosf($Deg2Rad(CAMERA_THETA)) * 6.0f;
-    f32 s = sinf($Deg2Rad(CAMERA_THETA)) * 6.0f;
+    f32 c = cosf($Deg2Rad(CAMERA_THETA[localIndex])) * cameraDistance;
+    f32 s = sinf($Deg2Rad(CAMERA_THETA[localIndex])) * cameraDistance;
 
     Vec3f cameraTarget = RotatePointXZ($Vec3_Xyz(c,0,s), localPlayer->obj.yaw);
     
@@ -250,30 +269,8 @@ static void Draw_Player(Player* localPlayer, Scene* scene, u32 localIndex)
     Player* player = &PLAYER[ii];
     if (Object_IsAlive($Cast(Object*) player) == false)
       continue;
-    #if 0
-    Rot3i rot;
-    rot.pitch = 0;
-    rot.yaw   = player->obj.yaw;
-    rot.roll  = 0;
-    $.Scene.DrawMesh(scene, &MESH_PLAYER[player->team], player->obj.position, rot);
 
-    Vec3f wheel[4];
-
-    wheel[0] = TransformLocalPointToWorldSpaceXZ(player->obj.position, -rot.yaw, $Vec3_Xyz(0.9f,  0, 1.0f));   wheel[0].y = -0.62f;
-    wheel[1] = TransformLocalPointToWorldSpaceXZ(player->obj.position, -rot.yaw, $Vec3_Xyz(-0.9f, 0, 1.0f));   wheel[1].y = -0.62f;
-    wheel[2] = TransformLocalPointToWorldSpaceXZ(player->obj.position, -rot.yaw, $Vec3_Xyz( 0.9f, 0,-1.32f));  wheel[2].y = -0.62f;
-    wheel[3] = TransformLocalPointToWorldSpaceXZ(player->obj.position, -rot.yaw, $Vec3_Xyz(-0.9f, 0,-1.32f));  wheel[3].y = -0.62f;
-
-    Rot3i steeringRot = rot;
-    steeringRot.yaw -= (i16) $Rad2Deg(player->steering);
-
-    $.Scene.DrawMesh(scene, &MESH_WHEEL, wheel[0], steeringRot);
-    $.Scene.DrawMesh(scene, &MESH_WHEEL, wheel[1], steeringRot);
-    $.Scene.DrawMesh(scene, &MESH_WHEEL, wheel[2], rot);
-    $.Scene.DrawMesh(scene, &MESH_WHEEL, wheel[3], rot);
-    #endif
     Draw_Car(scene, player->obj.position, player->obj.yaw, player->steering, player->team);
-
   }
 
   Rot3i ballRot;
@@ -295,20 +292,20 @@ void Draw_Scene()
   $.Surface.Render(&SURFACE);
 }
 
-void Update_Scene(Player* player, int playerId)
+void Update_Scene(Player* player, int localPlayerIndex)
 {
-  u32 controlOffset = (playerId + 1) * 40;
+  u32 controlOffset = (localPlayerIndex + 1) * 40;
 
   if (player != NULL)
   {
-    if (CAMERA_THETA_TIME >= 0.0f)
+    if (CAMERA_THETA_TIME[localPlayerIndex] >= 0.0f)
     {
-      CAMERA_THETA_TIME -= $.fixedDeltaTime;
-      if (CAMERA_THETA_TIME <= 0.0f)
+      CAMERA_THETA_TIME[localPlayerIndex] -= $.fixedDeltaTime;
+      if (CAMERA_THETA_TIME[localPlayerIndex] <= 0.0f)
       {
-        CAMERA_THETA_PID_ENABLED = true;
-        CAMERA_THETA_PID_DELTA = 0.0f;
-        MakePidDefaults1(&CAMERA_THETA_PID);
+        CAMERA_THETA_PID_ENABLED[localPlayerIndex] = true;
+        CAMERA_THETA_PID_DELTA[localPlayerIndex] = 0.0f;
+        MakePidDefaults1(&CAMERA_THETA_PID[localPlayerIndex]);
       }
     }
 
@@ -337,29 +334,29 @@ void Update_Scene(Player* player, int playerId)
 
     if ($.Input.ControlDown(controlOffset + CONTROL_P0_CAMERA_LEFT))
     {
-      CAMERA_THETA -= 70.0f * $.fixedDeltaTime;
-      CAMERA_THETA_TIME = 2.0f;
-      CAMERA_THETA_PID_ENABLED = false;
+      CAMERA_THETA[localPlayerIndex] -= 70.0f * $.fixedDeltaTime;
+      CAMERA_THETA_TIME[localPlayerIndex] = 2.0f;
+      CAMERA_THETA_PID_ENABLED[localPlayerIndex] = false;
     }
     else if ($.Input.ControlDown(controlOffset + CONTROL_P0_CAMERA_RIGHT))
     {
-      CAMERA_THETA += 70.0f * $.fixedDeltaTime;
-      CAMERA_THETA_TIME = 2.0f;
-      CAMERA_THETA_PID_ENABLED = false;
+      CAMERA_THETA[localPlayerIndex] += 70.0f * $.fixedDeltaTime;
+      CAMERA_THETA_TIME[localPlayerIndex] = 2.0f;
+      CAMERA_THETA_PID_ENABLED[localPlayerIndex] = false;
     }
-    CAMERA_THETA = ConstrainAngle(CAMERA_THETA);
+    CAMERA_THETA[localPlayerIndex] = ConstrainAngle(CAMERA_THETA[localPlayerIndex]);
   }
 
-  if (CAMERA_THETA_PID_ENABLED)
+  if (CAMERA_THETA_PID_ENABLED[localPlayerIndex])
   {
-    f32 error = PidError(CAMERA_THETA_DEFAULT, CAMERA_THETA);
-    CAMERA_THETA_PID_DELTA = UpdatePid(&CAMERA_THETA_PID, error, $.fixedDeltaTime);
-    CAMERA_THETA += CAMERA_THETA_PID_DELTA * $.fixedDeltaTime * 4.0f;
+    f32 error = PidError(CAMERA_THETA_DEFAULT, CAMERA_THETA[localPlayerIndex]);
+    CAMERA_THETA_PID_DELTA[localPlayerIndex] = UpdatePid(&CAMERA_THETA_PID[localPlayerIndex], error, $.fixedDeltaTime);
+    CAMERA_THETA[localPlayerIndex] += CAMERA_THETA_PID_DELTA[localPlayerIndex] * $.fixedDeltaTime * 4.0f;
     
-    if (AbsDifference(CAMERA_THETA, CAMERA_THETA_DEFAULT) < 1.0f)
+    if (AbsDifference(CAMERA_THETA[localPlayerIndex], CAMERA_THETA_DEFAULT) < 1.0f)
     {
-      CAMERA_THETA = CAMERA_THETA_DEFAULT;
-      CAMERA_THETA_PID_ENABLED = false;
+      CAMERA_THETA[localPlayerIndex] = CAMERA_THETA_DEFAULT;
+      CAMERA_THETA_PID_ENABLED[localPlayerIndex] = false;
     }
   }
 
@@ -370,15 +367,14 @@ void Start_SinglePlayer(u8 p0, u8 p1, u8 p2, u8 p3, bool p1IsPlayer, bool p2IsPl
   f32 x = GOAL_SIZE_X_F;
   f32 z = BOUNDS_SIZE_HALF_F - BOUNDS_SIZE_HALF_F * 0.5f;
   
-  for(u32 ii=0;ii < MAX_PLAYERS;ii++)
-  {
-    PLAYER[ii].obj.type  = OT_NONE;
-    PLAYER[ii].autopilot = false;
-  }
-
-#if 1
-//  ME = &PLAYER[0];
   
+  memset(PLAYER, 0, sizeof(PLAYER));
+  memset(&BALL, 0, sizeof(BALL));
+  
+  BALL.obj.type = OT_BALL;
+  BALL.obj.position.FORWARD = 0;
+  BALL.magnet = 255;
+
   LOCAL[0] = &PLAYER[0];
   LOCAL[1] = p2IsPlayer ? &PLAYER[1] : NULL;
 
@@ -409,29 +405,18 @@ void Start_SinglePlayer(u8 p0, u8 p1, u8 p2, u8 p3, bool p1IsPlayer, bool p2IsPl
   PLAYER[3].obj.position = $Vec3_Xyz(x, 0, -z);
   PLAYER[3].obj.yaw = -60;
   PLAYER[3].heading = $Deg2Rad(PLAYER[3].obj.yaw);
-#else
-  LOCAL[0] = &PLAYER[0];
-  LOCAL[1] = &PLAYER[1];
-  
-  PLAYER[0].obj.type = OT_PLAYER;
-  PLAYER[0].autopilot = false;
-  PLAYER[0].team = 0;
-  PLAYER[0].obj.position = $Vec3_Xyz(10, 0, 10);
-  PLAYER[0].obj.yaw = -180;
-  PLAYER[0].heading = $Deg2Rad(PLAYER[0].obj.yaw);
-  
-  PLAYER[1].obj.type = OT_PLAYER;
-  PLAYER[1].autopilot = false;
-  PLAYER[1].team = 1;
-  PLAYER[1].obj.position = $Vec3_Xyz(10, 0, -10);
-  PLAYER[1].obj.yaw = 0;
-  PLAYER[1].heading = $Deg2Rad(PLAYER[1].obj.yaw);
-#endif
 
-  CAMERA_THETA      = CAMERA_THETA_DEFAULT;
-  CAMERA_THETA_TIME = 0.0f;
-  CAMERA_THETA_PID_ENABLED = false;
-  CAMERA_THETA_PID_DELTA = 0.0f;
+  CAMERA_THETA[0]      = CAMERA_THETA_DEFAULT;
+  CAMERA_THETA_TIME[0] = 0.0f;
+  CAMERA_THETA_PID_ENABLED[0] = false;
+  CAMERA_THETA_PID_DELTA[0] = 0.0f;
+  
+  CAMERA_THETA[1]      = CAMERA_THETA_DEFAULT;
+  CAMERA_THETA_TIME[1] = 0.0f;
+  CAMERA_THETA_PID_ENABLED[1] = false;
+  CAMERA_THETA_PID_DELTA[1] = 0.0f;
+
+  BALL.gameTime = PLAY_TIME;
 
   Setup_Scenes();
 }
@@ -456,10 +441,16 @@ void Update_SinglePlayer()
 
 void Start_Multiplayer()
 {
-  CAMERA_THETA      = CAMERA_THETA_DEFAULT;
-  CAMERA_THETA_TIME = 0.0f;
-  CAMERA_THETA_PID_ENABLED = false;
-  CAMERA_THETA_PID_DELTA = 0.0f;
+
+  CAMERA_THETA[0]      = CAMERA_THETA_DEFAULT;
+  CAMERA_THETA_TIME[0] = 0.0f;
+  CAMERA_THETA_PID_ENABLED[0] = false;
+  CAMERA_THETA_PID_DELTA[0] = 0.0f;
+  
+  CAMERA_THETA[1]      = CAMERA_THETA_DEFAULT;
+  CAMERA_THETA_TIME[1] = 0.0f;
+  CAMERA_THETA_PID_ENABLED[1] = false;
+  CAMERA_THETA_PID_DELTA[1] = 0.0f;
 
   Setup_Scenes();
 }
@@ -483,37 +474,27 @@ void FixedUpdate_Multiplayer()
 
 i32 syncTimer = 0;
 
-void Update_MultiPlayer(Player* ME)
+void Update_MultiPlayer()
 {
-  if (ME == NULL)
+  if (syncTimer++ > 20)
   {
-    $.Canvas.DrawTextF(&HUD, &FONT, DB16_PEPPERMINT, 0, 0, "Waiting for Mainframe response...");
-    $.Canvas.Render(&HUD, &SURFACE);
-    $.Surface.Render(&SURFACE);
-    return;
-  }
-  else
-  {
-    if (syncTimer++ > 10)
+    for(u32 ii=0;ii < MAX_PLAYERS;ii++)
     {
-      for(u32 ii=0;ii < MAX_PLAYERS;ii++)
+      if (PLAYER[ii].multiplayerIsControlled)
       {
-        if (PLAYER[ii].multiplayerIsControlled)
-        {
-          Player_Send_Update(ii);
-        }
+        Player_Send_Update(ii);
       }
-
-      if (Net_IsHosting())
-      {
-        Player_Send_Ball_Update(&BALL);
-      }
-
-      syncTimer = 0;
     }
 
-    Draw_Scene();
+    if (Net_IsHosting())
+    {
+      Player_Send_Ball_Update(&BALL);
+    }
+
+    syncTimer = 0;
   }
+
+  Draw_Scene();
 }
 
 // 0 - Player Red
@@ -533,6 +514,10 @@ static const char* MODE_TEAMS[4] = {
 
 static u32 MODE_TEAMS_HALF_LEN[4] = {
   19 / 2, 26 / 2, 19 / 2,  26 / 2,
+};
+
+static u8 MODE_TEAM[4] = {
+  0, 1, 0, 1
 };
 
 static u8 MODE_TEAMS_COLOUR[4] = {
@@ -653,13 +638,8 @@ void Update_SinglePlayerSetup()
   
   for(u32 ii=0;ii < 4;ii++)
   {
-    u8 team = 0;
+    u8 team = setupSinglePlayerMode[ii] % 2;
 
-    if (setupSinglePlayerMode[ii] == 0 || setupSinglePlayerMode[ii] == 2)
-      team = 0;
-    else
-      team = 1;
-    
     $.Scene.Clear(&SCENES[ii], DB16_VERY_DARK_VIOLET);
     Draw_Car(&SCENES[ii], $Vec3_Xyz(0,0,0), setupSingleCarRot, 0.0f, team);
     $.Scene.Render(&SCENES[ii], &SURFACE);
@@ -698,6 +678,11 @@ static int setupMultiConnectState;
 void Update_Title()
 {
   $.Canvas.DrawBitmap(&HUD, &TITLE, 0, 0);
+  #if $IsBrowser == 1
+  $.Canvas.DrawSpriteXywh(&HUD, &ART, 0, 0, 140, 12, 320 / 2 - 140 / 2, 110);
+  #else
+  $.Canvas.DrawSpriteXywh(&HUD, &ART, 0, 0, 140, 34, 320 / 2 - 140 / 2, 110);
+  #endif
   $.Canvas.Render(&HUD, &SURFACE);
   $.Surface.Render(&SURFACE);
 
@@ -727,27 +712,170 @@ void Update_Title()
     setupSinglePlayerMode[3] = 2;
     return;
   }
+  #if $IsBrowser == 0
   else if ($.Input.ControlReleased(CONTROL_START_MULTI))
   {
     GAME_STATE = GAME_STATE_MULTI_SETUP;
     setupMultiState = 0;
+    
     setupMultiAddress[0] = 0;
     strcat((char*) &setupMultiAddress[0], "127.0.0.1");
     setupMultiPort[0] = 0;
     strcat((char*) &setupMultiPort[0], "27960");
-
-    GAME_STATE = GAME_STATE_MULTI_SETUP;
-
+    
     return;
   }
+  #endif
   else if ($.Input.ControlDown(CONTROL_SECRET))
   {
     Start_SinglePlayer(0, 1, 0, 1, false, false);
     GAME_STATE = GAME_STATE_SINGLE;
     return;
   }
-
 }
+
+void Start_Scores()
+{
+  $.Scene.Delete(&SCENES[0]);
+  $.Scene.Delete(&SCENES[1]);
+  $.Scene.Delete(&SCENES[2]);
+  $.Scene.Delete(&SCENES[3]);
+  
+  i32 s = $.width / 4;
+  i32 x = 0, y = s / 2;
+
+  for (u32 ii=0;ii < 4;ii++, x += s)
+  {
+    $.Scene.NewXywh(&SCENES[ii], x, y, s, s);
+    $.Scene.SetPovLookAtXyz(&SCENES[ii], 0, 2.0, 2.5, 0, 0, 0);
+  }
+
+  Net_Stop();
+}
+
+static const char* scoresNamesPlayer[] = {
+  "P1", "P2", "P3", "P4"
+};
+
+static u32 scoresNamesPlayerHalfSize[] = {
+  6, 6, 6, 6
+};
+
+static const char* scoresNamesCpu[] = {
+  "CPU1", "CPU2", "CPU3", "CPU4"
+};
+
+static u32 scoresNamesCpuHalfSize[] = {
+  15, 15, 15, 15
+};
+
+void Update_Scores()
+{
+  $.Canvas.Clear(&HUD, DB16_VERY_DARK_VIOLET);
+
+  u32 s = $.width / 4;
+  u32 x = $.width / s;
+  u32 y = s / 2 + s + 10;
+
+  for(u32 ii=0;ii < MAX_PLAYERS;ii++)
+  {
+    Player* player = &PLAYER[ii];
+    
+    if (player->obj.type == 0)
+    {
+      continue;
+    }
+
+    u8 team = player->team;
+
+
+    if (player->multiplayerReference != 0)
+    {
+      team = team % 2;
+    }
+
+    $.Canvas.DrawTextF(&HUD, &FONT, MODE_TEAMS_COLOUR[team], x + s / 2 - MODE_TEAMS_COLOUR[team], y, MODE_TEAMS[team]);
+
+    const char* name = "??";
+    u32 offset = 0;
+    bool isCpu = false;
+
+    if (player->multiplayerReference != 0)
+    {
+      isCpu = false;
+    }
+    else
+    {
+      if (player->autopilot)
+        isCpu = true;
+    }
+
+    name = isCpu ? scoresNamesCpu[ii] : scoresNamesPlayer[ii];
+    offset = isCpu ? scoresNamesCpuHalfSize[ii] : scoresNamesPlayerHalfSize[ii];
+    
+    $.Canvas.DrawTextF(&HUD, &FONT, MODE_TEAMS_COLOUR[team], x + s / 2 - offset, y + 9, name);
+    
+    if (player == LOCAL[0] || player == LOCAL[1])
+    {
+      $.Canvas.DrawTextF(&HUD, &FONT, DB16_BANANA, x + s / 2 - 9, y + 30, "%i", player->score);
+    }
+    else
+    {
+      $.Canvas.DrawTextF(&HUD, &FONT, DB16_FLINT, x + s / 2 - 9, y + 30, "%i", player->score);
+    }
+
+    x += s;
+  }
+  
+  if (BALL.red == BALL.blue)
+    $.Canvas.DrawTextF(&HUD, &FONT, DB16_BANANA, $.width / 2 - 11, 2, "Draw");
+  else if (BALL.red > BALL.blue)
+    $.Canvas.DrawTextF(&HUD, &FONT, DB16_BANANA, $.width / 2 - 16, 2, "Red Wins!");
+  else if (BALL.red < BALL.blue)
+    $.Canvas.DrawTextF(&HUD, &FONT, DB16_BANANA, $.width / 2 - 25, 2, "Blue Wins!");
+
+  
+  $.Canvas.DrawTextF(&HUD, &FONT, DB16_FADED_RED,  $.width / 2 - 14, 16, "%02i", BALL.red);
+  $.Canvas.DrawTextF(&HUD, &FONT, DB16_CADET_BLUE, $.width / 2 + 3, 16, "%02i", BALL.blue);
+
+
+  $.Canvas.DrawTextF(&HUD, &FONT, DB16_FLINT, 12, $.height - 12, "[TAB] Menu");
+
+  $.Canvas.Render(&HUD, &SURFACE);
+  
+  for(u32 ii=0;ii < MAX_PLAYERS;ii++)
+  {
+    Player* player = &PLAYER[ii];
+
+    if (player->obj.type == 0)
+      continue;
+      
+    u8 team = player->team;
+
+    if (player->multiplayerReference != 0)
+    {
+      team = team % 2;
+    }
+
+    
+    $.Scene.Clear(&SCENES[ii], DB16_VERY_DARK_VIOLET);
+    Draw_Car(&SCENES[ii], $Vec3_Xyz(0,0,0), setupSingleCarRot, 0.0f, team);
+    $.Scene.Render(&SCENES[ii], &SURFACE);
+  }
+
+  setupSingleCarRot += 90.0f * $.deltaTime;
+
+  $.Surface.Render(&SURFACE);
+
+  if ($.Input.ControlReleased(CONTROL_CANCEL))
+  {
+    GAME_STATE = GAME_STATE_TITLE;
+    return;
+  }
+}
+
+static int typeState = 0;
+
 void Update_MultiPlayerSetup()
 {
   $.Canvas.Clear(&HUD, DB16_VERY_DARK_VIOLET);
@@ -756,79 +884,145 @@ void Update_MultiPlayerSetup()
 
   $.Canvas.DrawTextF(&HUD, &FONT, DB16_BANANA, 12, 48, "[1] Host");
 
-  $.Canvas.DrawTextF(&HUD, &FONT, DB16_BIRTHDAY_SUIT, 70, 48, (char*) &setupMultiAddress[0]);
+  if (typeState == 1)
+    $.Canvas.DrawTextF(&HUD, &FONT, DB16_BIRTHDAY_SUIT, 70, 48, "%s_", (char*) &setupMultiAddress[0]);
+  else
+    $.Canvas.DrawTextF(&HUD, &FONT, DB16_BIRTHDAY_SUIT, 70, 48, (char*) &setupMultiAddress[0]);
 
   $.Canvas.DrawTextF(&HUD, &FONT, DB16_BANANA, 12, 64, "[2] Port");
   
-  $.Canvas.DrawTextF(&HUD, &FONT, DB16_BIRTHDAY_SUIT, 70, 64, (char*) &setupMultiPort[0]);
+  if (typeState == 2)
+    $.Canvas.DrawTextF(&HUD, &FONT, DB16_BIRTHDAY_SUIT, 70, 64, "%s_", (char*) &setupMultiPort[0]);
+  else
+    $.Canvas.DrawTextF(&HUD, &FONT, DB16_BIRTHDAY_SUIT, 70, 64, (char*) &setupMultiPort[0]);
 
   $.Canvas.DrawTextF(&HUD, &FONT, DB16_FLINT, 12, $.height - 12, "[TAB] Menu");
   $.Canvas.DrawTextF(&HUD, &FONT, DB16_BANANA, $.width - 12 - 89, $.height - 12, "[SPACE] Connect");
-
+  
   $.Canvas.Render(&HUD, &SURFACE);
   $.Surface.Render(&SURFACE);
   
-  if ($.Input.ControlReleased(CONTROL_P1_HANDBRAKE))
+  if (typeState == 0 && $.Input.ControlReleased(CONTROL_CONFIRM))
   {
     setupMultiState = 1;
-
-    Net_Start((char*) setupMultiAddress, (char*) setupMultiPort);
+    BALL.gameTime = PLAY_TIME;
     GAME_STATE = GAME_STATE_NETWORK_CONNECT;
     return;
   }
 
-  if ($.Input.ControlReleased(CONTROL_P1_AUTOPILOT))
+  if (typeState == 0 && $.Input.ControlReleased(CONTROL_OPTION_1))
+  {
+    typeState = 1;
+  }
+  
+  if (typeState == 0 && $.Input.ControlReleased(CONTROL_OPTION_2))
+  {
+    typeState = 2;
+  }
+
+  if (typeState == 0 && $.Input.ControlReleased(CONTROL_CANCEL))
   {
     GAME_STATE = GAME_STATE_TITLE;
     return;
   }
+
+  if (typeState == 1 && $.Input.TextInput( (char*) &setupMultiAddress[0], 256) == 2)
+  {
+    typeState = 0;
+  }
+  
+  if (typeState == 2 && $.Input.TextInput( (char*) &setupMultiPort[0], 256) == 2)
+  {
+    typeState = 0;
+  }
 }
+
+const char* connectStatus;
+
 
 void Update_NetworkConnect()
 {
-  Net_Update();
 
+  printf("%i\n", setupMultiState);
+
+  
+  switch(setupMultiState)
+  {
+    case 1:
+    {
+        memset(PLAYER, 0, sizeof(PLAYER));
+        memset(&BALL, 0, sizeof(BALL));
+  
+        BALL.obj.type = OT_BALL;
+        BALL.obj.position.FORWARD = 0;
+        BALL.magnet = 255;
+        BALL.gameTime = PLAY_TIME;
+        
+        setupMultiState = 2;
+        connectStatus = "ATTEMPTING CONNECTION...";
+    }
+    break;
+    case 2:
+    {
+        setupMultiState = 3;
+        Net_Start((char*) setupMultiAddress, (char*) setupMultiPort);
+        connectStatus = "CONNECTING...";
+    }
+    break;
+    case 3:
+    {
+      if ($.Net.IsConnected() == true)
+      {
+        connectStatus = "CONNECTED!";
+        setupMultiState = 4;
+      }
+    }
+    break;
+    case 4:
+    {
+      Net_Update();
+
+      u16 reference = rand();
+      u8 playerIndex = Player_New(reference);
+    
+      if (Net_GetNumClients() >= 4)
+      {
+        GAME_STATE = GAME_STATE_TITLE;
+        return;
+      }
+        
+      connectStatus = "SETTING UP GAME";
+
+      //printf("Creating Player...\n");
+      Net_Send_CreatePlayer(reference, 0);
+
+      setupMultiState = 5;
+    }
+    break;
+    case 5:
+    {
+      Net_Update();
+
+      Player* player = Player_GetFirstControlled();
+      if (player != NULL)
+      {
+        connectStatus = "STARTING GAME";
+        //printf("Starting Game...\n");
+          
+        LOCAL[0] = player;
+        LOCAL[1] = NULL;
+
+        GAME_STATE = GAME_STATE_MULTI;
+        Start_Multiplayer();
+      }
+    }
+    break;
+  }
+  
   $.Canvas.Clear(&HUD, DB16_VERY_DARK_VIOLET);
   $.Canvas.DrawTextF(&HUD, &FONT, DB16_BIRTHDAY_SUIT, $.width / 2 - 66, 12, "CONNECTING TO MAINFRAME");
+  $.Canvas.DrawTextF(&HUD, &FONT, DB16_BIRTHDAY_SUIT, 0, $.height - 9, connectStatus);
 
   $.Canvas.Render(&HUD, &SURFACE);
   $.Surface.Render(&SURFACE);
-  
-  if (Net_IsConnected())
-  {
-    switch(setupMultiState)
-    {
-      case 1:
-      {
-        u16 reference = rand();
-        u8 playerIndex = Player_New(reference);
-    
-        if (Net_GetNumClients() >= 4)
-        {
-          GAME_STATE = GAME_STATE_TITLE;
-          return;
-        }
-        
-        printf("Creating Player...\n");
-        setupMultiState = 2;
-        Net_Send_CreatePlayer(reference, 0);
-      }
-      break;
-      case 2:
-      {
-        Player* player = Player_GetFirstControlled();
-        if (player != NULL)
-        {
-          printf("Starting Game...\n");
-          
-          LOCAL[0] = player;
-          LOCAL[1] = NULL;
-
-          GAME_STATE = GAME_STATE_MULTI;
-          Start_Multiplayer();
-        }
-      }
-      break;
-    }
-  }
 }

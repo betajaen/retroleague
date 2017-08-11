@@ -22,21 +22,31 @@ Bug Fixes for Friday
 - [x] Collisions for car-car
 - [x] Timing fixes
 - [x] Network accuracy lost
-- [ ] Manual/Readme screen
+- [x] Manual written and printed
+- [x] Manual scanned, and converted to PDF
 - [x] Secret demo mode - (button to activate on title)
-- [ ] 'GOAAAL' text when you score
-- [ ] Game Timer
-- [ ] Game Reset system
+- [x] 'GOAAAL' text when you score
+- [x] Game Timer
+- [x] Game Reset system
 - [x] Split screen two player
 - [x] Single player setup screen
-- [ ] Multiplayer setup screen (enter ip, etc.)
-- [ ] Fix Throttle
-- [ ] Fix seperate camera pid controllers
-- [ ] joypad support (MAYBE)
+- [x] Multiplayer setup screen (enter ip, etc.)
+- [x] Ball sync bug/scores too.
+- [x] MP Team selection
+- [x] Fix seperate camera pid controllers
+- [ ] Play music
+- [ ] Sounds; Car throttle, Car brake, Ball bump, Spin
+- [x] Browser should use different title screen
+- [x] Fix Goals dots
+- [x] Score screen
 
 If I can make it in time/v2
 ---------------------------
 
+- [ ] joypad support (MAYBE)
+- [x] Fix AI Throttle (HACK)
+- [ ] - Fix powers over multiplayer (try syncing bit flags)
+- [ ] - Freezes on bad ip address
 - [ ] - Revisit line drawing
 - [ ] - Bounce cars back on map edges
 - [ ] - Ball should spin

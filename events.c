@@ -50,6 +50,8 @@ void $Setup()
   $.Input.BindControl(CONTROL_CONFIRM,               $KEY_SPACE);
   $.Input.BindControl(CONTROL_CANCEL,                $KEY_TAB);
   $.Input.BindControl(CONTROL_SECRET,                $KEY_P);
+  $.Input.BindControl(CONTROL_OPTION_1,              $KEY_1);
+  $.Input.BindControl(CONTROL_OPTION_2,              $KEY_2);
 
 }
 
@@ -61,12 +63,10 @@ void $Start()
   $.Bitmap.Load(&TITLE, "title.png");
   $.Font.New(&FONT, "font.png", $Rgb(0,0,255), $Rgb(255, 0, 255));
 
-  // $.Music.Play("dragon2.mod");
+  $.Music.Play("speed_rules.mod");
 
   $.Surface.New(&SURFACE);
-
   $.Canvas.New(&HUD);
-  $Vec3_Set(&CAMERA_POSITION, 2,0,-5);
 
   memset(PLAYER, 0, sizeof(PLAYER));
   memset(&BALL, 0, sizeof(BALL));
@@ -94,6 +94,8 @@ void Update_SinglePlayerSetup();
 void Update_MultiPlayerSetup();
 void Update_MultiPlayer();
 
+void Update_Scores();
+
 void $Draw()
 {
   if (GAME_STATE == GAME_STATE_SINGLE)
@@ -108,4 +110,6 @@ void $Draw()
     Update_MultiPlayerSetup();
   else if (GAME_STATE == GAME_STATE_NETWORK_CONNECT)
     Update_NetworkConnect();
+  else if (GAME_STATE == GAME_STATE_SCORES)
+    Update_Scores();
 }
